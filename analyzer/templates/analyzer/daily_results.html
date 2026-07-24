@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Controle Financeiro</title>
+    <style>
+      :root {
+        --bg: #eff4fa;
+        --card: #ffffff;
+                  <a class="button danger" href="/financeiro/{{ record.id }}/excluir/">Desativar</a>
+        --muted: #536589;
+        --accent: #0f7b53;
+        --line: #d6deeb;
+        --danger: #b42318;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        color: var(--text);
+        background: linear-gradient(180deg, #d8e8ff 0%, var(--bg) 35%);
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 1180px;
+        margin: 0 auto;
+      }
+
+      .top-links {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-bottom: 16px;
+      }
+
+      .top-link {
+        color: #174d97;
+        text-decoration: none;
+        font-weight: 600;
+      }
+
+      h1 {
+        margin-bottom: 8px;
+      }
+
+      .sub {
+        color: var(--muted);
+        margin-top: 0;
+        margin-bottom: 18px;
+      }
+
+      .summary {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 12px;
+        margin-bottom: 18px;
+      }
+
+      .card {
+        background: var(--card);
+        border-radius: 14px;
+        padding: 14px;
+        box-shadow: 0 8px 24px rgba(31, 49, 86, 0.1);
+      }
+
+      .kpi {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: var(--accent);
+        margin: 6px 0;
+      }
+
+      .kpi.negative {
+        color: var(--danger);
+      }
+
+      .messages {
+        list-style: none;
+        margin: 0 0 16px;
+        padding: 0;
+      }
+
+      .messages li {
+        background: #dcfce7;
+        color: #14532d;
+        border-radius: 8px;
+        padding: 10px 12px;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 8px;
+        font-size: 0.95rem;
+      }
+
+      th,
+      td {
+        border-bottom: 1px solid var(--line);
+        padding: 8px 6px;
+        text-align: left;
+      }
+
+      th {
+        color: #294368;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+      }
+
+      .actions {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 12px;
+      }
+
+      .button {
+        border: none;
+        background: var(--accent);
+        color: #fff;
+        padding: 10px 16px;
+        border-radius: 10px;
+        font-weight: 600;
+        text-decoration: none;
+        display: inline-block;
+      }
+
+      .button.secondary {
+        background: #1e3a8a;
+      }
+
+      .button.danger {
+        background: var(--danger);
+      }
+
+      .row-actions {
+        display: flex;
+        gap: 8px;
+      }
+
+      .row-actions .button {
+        padding: 6px 10px;
+        border-radius: 8px;
+        font-size: 0.85rem;
+      }
+
+      .empty {
+        color: var(--muted);
+        margin: 8px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="top-links">
+        <a class="top-link" href="/">&larr; Voltar para analise</a>
+      </div>
+
+      <h1>Controle de Investimento x Retorno</h1>
+      <p class="sub">
+        Registre seus valores diarios para acompanhar lucro, prejuizo e ROI.
+      </p>
+
+      {% if messages %}
+      <ul class="messages">
+        {% for message in messages %}
+        <li>{{ message }}</li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+
+      <section class="summary">
+        <article class="card">
+          <div>Total investido</div>
+          <div class="kpi">R$ {{ total_invested|floatformat:2 }}</div>
+        </article>
+        <article class="card">
+          <div>Total retornado</div>
+          <div class="kpi">R$ {{ total_returned|floatformat:2 }}</div>
+        </article>
+        <article class="card">
+          <div>Saldo (lucro/prejuizo)</div>
+          <div class="kpi {% if balance < 0 %}negative{% endif %}">
+            R$ {{ balance|floatformat:2 }}
+          </div>
+        </article>
+        <article class="card">
+          <div>ROI (%)</div>
+          <div class="kpi">{{ roi_percent|floatformat:2 }}%</div>
+        </article>
+        <article class="card">
+          <div>Quantidade de registros</div>
+          <div class="kpi">{{ records_count }}</div>
+        </article>
+      </section>
+
+      <section class="card">
+        <div class="actions">
+          <h2 style="margin: 0">Historico diario</h2>
+          <a class="button" href="/financeiro/novo/">Novo registro</a>
+        </div>
+
+        {% if records %}
+        <table>
+          <thead>
+            <tr>
+              <th>Data</th>
+              <th>Concurso</th>
+              <th>Investido</th>
+              <th>Retornado</th>
+              <th>Saldo</th>
+              <th>Observacao</th>
+              <th>Acoes</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for record in records %}
+            <tr>
+              <td>{{ record.play_date|date:'d/m/Y' }}</td>
+              <td>{{ record.concurso|default:'-' }}</td>
+              <td>R$ {{ record.invested_amount|floatformat:2 }}</td>
+              <td>R$ {{ record.returned_amount|floatformat:2 }}</td>
+              <td>R$ {{ record.balance|floatformat:2 }}</td>
+              <td>{{ record.notes|default:'-' }}</td>
+              <td>
+                <div class="row-actions">
+                  <a
+                    class="button secondary"
+                    href="/financeiro/{{ record.id }}/editar/"
+                    >Editar</a
+                  >
+                  <a
+                    class="button danger"
+                    href="/financeiro/{{ record.id }}/excluir/"
+                    >Desativar</a
+                  >
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <p class="empty">Nenhum registro cadastrado ainda.</p>
+        {% endif %}
+      </section>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Excluir Registro Financeiro</title>
+    <style>
+      :root {
+        --bg: #f4f6fb;
+        --card: #ffffff;
+        --text: #17203a;
+        --danger: #b42318;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        color: var(--text);
+        background: radial-gradient(circle at 10% 20%, #dff3ff, var(--bg) 45%);
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+      }
+
+      .card {
+        width: min(560px, 100%);
+        background: var(--card);
+        border-radius: 16px;
+        padding: 28px;
+        box-shadow: 0 16px 48px rgba(25, 45, 88, 0.12);
+      }
+
+      h1 {
+        margin-top: 0;
+        margin-bottom: 10px;
+      }
+
+      .sub {
+        margin-top: 0;
+        color: #4a5578;
+      }
+
+      .meta {
+        background: #f1f5f9;
+        border-radius: 10px;
+        padding: 10px 12px;
+        margin-bottom: 16px;
+      }
+
+      .actions {
+        display: flex;
+        gap: 10px;
+      }
+
+      .button {
+        border: none;
+        color: #fff;
+        padding: 11px 18px;
+        border-radius: 10px;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: none;
+      }
+
+      .button.danger {
+        background: var(--danger);
+      }
+
+      .button.secondary {
+        background: #1e3a8a;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="card">
+      <h1>Desativar Registro</h1>
+      <p class="sub">
+        O registro nao sera apagado do banco, apenas desativado.
+      </p>
+
+      <div class="meta">
+        <div><strong>Data:</strong> {{ record_play_date }}</div>
+        <div><strong>Concurso:</strong> {{ record_concurso }}</div>
+        <div><strong>Investido:</strong> R$ {{ record_invested_amount }}</div>
+        <div><strong>Retornado:</strong> R$ {{ record_returned_amount }}</div>
+      </div>
+
+      <form method="post" class="actions">
+        {% csrf_token %}
+        <button class="button danger" type="submit">
+          Confirmar desativacao
+        </button>
+        <a class="button secondary" href="/financeiro/">Cancelar</a>
+      </form>
+    </main>
+  </body>
+</html>
