@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Resultado da Analise</title>
+    <style>
+      :root {
+        --bg: #eff4fa;
+        --card: #ffffff;
+        --text: #132340;
+        --muted: #536589;
+        --accent: #0f7b53;
+        --line: #d6deeb;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        color: var(--text);
+        background: linear-gradient(180deg, #d8e8ff 0%, var(--bg) 35%);
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 1180px;
+        margin: 0 auto;
+      }
+
+      h1 {
+        margin-bottom: 8px;
+      }
+
+      .sub {
+        color: var(--muted);
+        margin-top: 0;
+        margin-bottom: 18px;
+      }
+
+      .summary {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 12px;
+        margin-bottom: 18px;
+      }
+
+      .card {
+        background: var(--card);
+        border-radius: 14px;
+        padding: 14px;
+        box-shadow: 0 8px 24px rgba(31, 49, 86, 0.1);
+      }
+
+      .kpi {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: var(--accent);
+        margin: 6px 0;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+        gap: 14px;
+        margin-bottom: 16px;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 8px;
+        font-size: 0.95rem;
+      }
+
+      th,
+      td {
+        border-bottom: 1px solid var(--line);
+        padding: 8px 6px;
+        text-align: left;
+      }
+
+      th {
+        color: #294368;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+      }
+
+      .full-table {
+        overflow-x: auto;
+      }
+
+      .messages {
+        margin: 0 0 16px;
+        padding-left: 20px;
+      }
+
+      .back-link {
+        display: inline-block;
+        margin: 14px 0 20px;
+        color: #174d97;
+        text-decoration: none;
+        font-weight: 600;
+      }
+
+      .game-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 14px;
+        margin-bottom: 18px;
+      }
+
+      .game-title {
+        margin: 0 0 8px;
+        color: #184072;
+      }
+
+      .game-numbers {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-bottom: 10px;
+      }
+
+      .num-chip {
+        min-width: 34px;
+        text-align: center;
+        font-weight: 700;
+        padding: 5px 8px;
+        border-radius: 999px;
+        background: #e3eefc;
+        color: #123c72;
+      }
+
+      .meta {
+        color: var(--muted);
+        margin: 2px 0;
+        font-size: 0.92rem;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <a class="back-link" href="/">&larr; Analisar outro arquivo</a>
+      <h1>Dashboard de Resultados</h1>
+      <p class="sub">
+        Todos os indicadores abaixo usam 100% dos concursos válidos lidos do
+        Excel enviado.
+      </p>
+
+      {% if parse_result.messages %}
+      <ul class="messages">
+        {% for msg in parse_result.messages %}
+        <li>{{ msg }}</li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+
+      <section class="card" style="margin-bottom: 16px">
+        <h2 class="game-title">3 jogos recomendados</h2>
+        <p class="sub" style="margin-bottom: 10px">
+          Critérios aplicados: frequência historica + mapa de calor (ultimos
+          10), 7 pares e 8 ímpares, moldura entre 9 e 11, repetição alvo com
+          ultimo concurso de {{ dashboard.repeat_target }} dezenas.
+        </p>
+
+        <div class="game-grid">
+          {% for game in dashboard.recommended_games %}
+          <article
+            class="card"
+            style="box-shadow: none; border: 1px solid var(--line)"
+          >
+            <h3 class="game-title">Jogo {{ forloop.counter }}</h3>
+            <div class="game-numbers">
+              {% for number in game.numbers %}
+              <span class="num-chip">{{ number }}</span>
+              {% endfor %}
+            </div>
+            <p class="meta">
+              Pares/ímpares: {{ game.even_count }}/{{ game.odd_count }}
+            </p>
+            <p class="meta">
+              Moldura/Centro: {{ game.moldura_count }}/{{ game.center_count }}
+            </p>
+            <p class="meta">
+              Repetição com último concurso: {{ game.repeat_last }}
+            </p>
+          </article>
+          {% endfor %}
+        </div>
+      </section>
+
+      <section class="summary">
+        <article class="card">
+          <div>Total de concursos válidos</div>
+          <div class="kpi">{{ dashboard.total_draws }}</div>
+        </article>
+        <article class="card">
+          <div>Media de pares por concurso</div>
+          <div class="kpi">{{ dashboard.avg_even }}</div>
+        </article>
+        <article class="card">
+          <div>Media de ímpares por concurso</div>
+          <div class="kpi">{{ dashboard.avg_odd }}</div>
+        </article>
+        <article class="card">
+          <div>Media da soma das dezenas</div>
+          <div class="kpi">{{ dashboard.avg_sum }}</div>
+        </article>
+        <article class="card">
+          <div>Média repetição com concurso anterior</div>
+          <div class="kpi">{{ dashboard.avg_repeats }}</div>
+        </article>
+        <article class="card">
+          <div>Linhas inválidas ignoradas</div>
+          <div class="kpi">{{ parse_result.invalid_rows }}</div>
+        </article>
+      </section>
+
+      <section class="grid">
+        <article class="card">
+          <h2>Dezenas que mais saem</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Dezena</th>
+                <th>frequência</th>
+                <th>%</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in dashboard.most_frequent %}
+              <tr>
+                <td>{{ item.dezena }}</td>
+                <td>{{ item.frequência }}</td>
+                <td>{{ item.percentual }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </article>
+
+        <article class="card">
+          <h2>Dezenas que menos saem</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Dezena</th>
+                <th>frequência</th>
+                <th>%</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in dashboard.least_frequent %}
+              <tr>
+                <td>{{ item.dezena }}</td>
+                <td>{{ item.frequência }}</td>
+                <td>{{ item.percentual }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </article>
+
+        <article class="card">
+          <h2>Mais quentes (histórico completo)</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Dezena</th>
+                <th>frequência</th>
+                <th>%</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in dashboard.hot_numbers %}
+              <tr>
+                <td>{{ item.dezena }}</td>
+                <td>{{ item.frequencia }}</td>
+                <td>{{ item.percentual }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </article>
+
+        <article class="card">
+          <h2>Mais atrasadas</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Dezena</th>
+                <th>Concursos sem sair</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in dashboard.overdue_numbers %}
+              <tr>
+                <td>{{ item.dezena }}</td>
+                <td>{{ item.concursos_sem_sair }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </article>
+
+        <article class="card">
+          <h2>Padrões par/impar mais comuns</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Padrão</th>
+                <th>Qtd</th>
+                <th>%</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in dashboard.top_patterns %}
+              <tr>
+                <td>{{ item.padrao }}</td>
+                <td>{{ item.qtd }}</td>
+                <td>{{ item.percentual }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </article>
+      </section>
+
+      <section class="card full-table">
+        <h2>Frequência completa (1 a 25)</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Dezena</th>
+              <th>frequência</th>
+              <th>Percentual de presença</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in dashboard.all_frequency %}
+            <tr>
+              <td>{{ item.dezena }}</td>
+              <td>{{ item.frequencia }}</td>
+              <td>{{ item.percentual }}%</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </section>
+    </div>
+  </body>
+</html>
