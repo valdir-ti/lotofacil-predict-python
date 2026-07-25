@@ -1,5 +1,6 @@
 from io import BytesIO
 from decimal import Decimal
+from unittest.mock import patch
 
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
@@ -25,10 +26,78 @@ def _excel_payload():
 
 
 class HomeViewTests(TestCase):
-    def test_home_page_loads(self):
+    @patch('analyzer.views.fetch_next_lotofacil_draw')
+    def test_home_page_loads(self, mock_next_draw):
+        mock_next_draw.return_value = {
+            'has_data': True,
+            'next_contest_number': 3744,
+            'next_contest_date': '24/07/2026',
+            'next_accumulated_value': 'R$ 2.000.000,00',
+        }
+
         response = self.client.get('/')
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Analise de Resultados da Lotofacil')
+        self.assertContains(response, 'Resumo financeiro recente')
+        self.assertContains(response, 'Proximo concurso da Lotofacil')
+        self.assertContains(response, '3744')
+        self.assertContains(response, '24/07/2026')
+        self.assertContains(response, 'R$ 2.000.000,00')
+
+    @patch('analyzer.views.fetch_next_lotofacil_draw')
+    def test_home_page_shows_financial_totals(self, mock_next_draw):
+        mock_next_draw.return_value = {
+            'has_data': False,
+            'next_contest_number': None,
+            'next_contest_date': None,
+            'next_accumulated_value': None,
+        }
+
+        DailyBetResult.objects.create(
+            play_date='2026-07-23',
+            concurso=3599,
+            invested_amount=Decimal('10.50'),
+            returned_amount=Decimal('5.00'),
+        )
+        DailyBetResult.objects.create(
+            play_date='2026-07-24',
+            concurso=3600,
+            invested_amount=Decimal('4.50'),
+            returned_amount=Decimal('7.00'),
+        )
+
+        response = self.client.get('/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'R$ 15,00')
+        self.assertContains(response, 'R$ 12,00')
+        self.assertContains(response, 'class="negative"')
+        self.assertContains(response, 'Saldo acumulado:')
+        self.assertContains(response, 'ROI total:')
+        self.assertContains(response, '% de apostas lucrativas:')
+        self.assertContains(response, 'Apostas lucrativas:')
+        self.assertContains(response, 'Apostas com prejuízo:')
+        self.assertContains(response, '-20,00%')
+        self.assertContains(response, '50,00%')
+        self.assertContains(response, '>1<')
+        self.assertContains(response, 'Ganhos/Perdas acumulado')
+        self.assertContains(response, 'cumulative_balance')
+        self.assertNotContains(response, '{{ financial_chart_data.total_invested')
+        self.assertNotContains(response, '{{ financial_chart_data.total_returned')
+
+    @patch('analyzer.views.fetch_next_lotofacil_draw')
+    def test_home_page_shows_fallback_when_next_draw_unavailable(self, mock_next_draw):
+        mock_next_draw.return_value = {
+            'has_data': False,
+            'next_contest_number': None,
+            'next_contest_date': None,
+            'next_accumulated_value': None,
+        }
+
+        response = self.client.get('/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Dados do proximo concurso indisponiveis no momento.')
 
     def test_upload_excel_and_get_results(self):
         file_data = _excel_payload()

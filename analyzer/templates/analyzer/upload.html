@@ -30,7 +30,7 @@
       }
 
       .card {
-        width: min(700px, 100%);
+        width: min(820px, 100%);
         background: var(--card);
         border-radius: 16px;
         padding: 28px;
@@ -54,6 +54,54 @@
         color: #174d97;
         text-decoration: none;
         font-weight: 600;
+      }
+
+      .next-draw-panel {
+        margin: 14px 0 16px;
+        padding: 12px 14px;
+        border-radius: 10px;
+        border: 1px solid #c8d9f0;
+        background: linear-gradient(135deg, #f2f7ff, #e9f2ff);
+      }
+
+      .next-draw-title {
+        margin: 0 0 6px;
+        font-size: 0.98rem;
+        color: #10376f;
+        font-weight: 700;
+      }
+
+      .next-draw-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .next-draw-icon {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        line-height: 1;
+        color: #0b6e4f;
+        background: #e5f6ee;
+        border: 1px solid #b7e5ce;
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.45);
+      }
+
+      .next-draw-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 8px;
+        font-size: 0.92rem;
+        color: #243d69;
+      }
+
+      .next-draw-grid strong {
+        color: #0c5f45;
       }
 
       .hint {
@@ -83,8 +131,174 @@
         padding: 10px 12px;
       }
 
+      .upload-form {
+        margin-top: 16px;
+        padding: 16px;
+        border: 1px solid #dbe5f2;
+        border-radius: 12px;
+        background: linear-gradient(135deg, #f9fbff, #f2f6ff);
+      }
+
+      .upload-form-title {
+        margin: 0 0 8px;
+        font-size: 1rem;
+        color: #10376f;
+      }
+
       .upload-row {
-        margin: 18px 0;
+        margin: 10px 0 12px;
+      }
+
+      .upload-row input[type="file"] {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px dashed #9cb8de;
+        border-radius: 10px;
+        background: #ffffff;
+        color: #243d69;
+      }
+
+      .upload-row input[type="file"]::file-selector-button {
+        margin-right: 10px;
+        padding: 8px 12px;
+        border: none;
+        border-radius: 8px;
+        background: #0b6e4f;
+        color: #ffffff;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
+      .upload-actions {
+        display: flex;
+        justify-content: flex-end;
+        margin-top: 8px;
+      }
+
+      .finance-block {
+        margin-top: 24px;
+        border-top: 1px solid #dbe5f2;
+        padding-top: 18px;
+      }
+
+      .finance-title {
+        margin: 0 0 6px;
+        font-size: 1.2rem;
+      }
+
+      .finance-sub {
+        margin: 0 0 12px;
+        color: #4a5578;
+      }
+
+      .finance-kpis {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 10px;
+        margin-bottom: 12px;
+      }
+
+      .finance-kpi {
+        background: #f3f7ff;
+        border: 1px solid #dbe5f2;
+        border-radius: 10px;
+        padding: 10px;
+      }
+
+      .finance-kpi strong {
+        display: block;
+        color: #143c72;
+        margin-top: 4px;
+      }
+
+      .finance-kpi strong.negative {
+        color: #b42318;
+      }
+
+      .chart-wrap {
+        border: 1px solid #dbe5f2;
+        border-radius: 12px;
+        padding: 10px;
+        background: #fcfdff;
+      }
+
+      #financeChart {
+        width: 100%;
+        height: 260px;
+        display: block;
+      }
+
+      .chart-legend {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-top: 10px;
+        font-size: 0.9rem;
+        color: #2d4572;
+      }
+
+      .chart-highlights {
+        margin-top: 12px;
+        padding: 10px 12px;
+        border-radius: 10px;
+        background: linear-gradient(135deg, #173a6a, #0c2344);
+        color: #dce8ff;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px 12px;
+      }
+
+      .highlight-item {
+        font-size: 0.9rem;
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 8px 10px;
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.07);
+      }
+
+      .highlight-item span {
+        color: #d7e5ff;
+      }
+
+      .highlight-item strong {
+        color: #36c86b;
+        white-space: nowrap;
+      }
+
+      .highlight-item strong.negative {
+        color: #ff6b6b;
+      }
+
+      @media (max-width: 860px) {
+        .chart-highlights {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+
+      @media (max-width: 620px) {
+        .chart-highlights {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .legend-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 6px;
+      }
+
+      .no-finance-data {
+        margin-top: 8px;
+        color: #4a5578;
+        background: #f8fbff;
+        border: 1px dashed #bfd3ef;
+        border-radius: 10px;
+        padding: 10px;
       }
 
       button {
@@ -158,12 +372,44 @@
     </div>
 
     <main class="card">
-      <a class="top-link" href="/financeiro/">Abrir controle financeiro &rarr;</a>
+      <a class="top-link" href="/financeiro/"
+        >Abrir controle financeiro &rarr;</a
+      >
       <h1>Analise de Resultados da Lotofacil</h1>
       <p>
         Envie um arquivo Excel para calcular indicadores no histórico completo
         do arquivo.
       </p>
+
+      <section
+        class="next-draw-panel"
+        aria-label="Proximo concurso da Lotofacil"
+      >
+        <div class="next-draw-header">
+          <span class="next-draw-icon" aria-hidden="true">☘</span>
+          <h2 class="next-draw-title">Proximo concurso da Lotofacil</h2>
+        </div>
+        {% if next_lotofacil_draw.has_data %}
+        <div class="next-draw-grid">
+          <div>
+            Concurso:
+            <strong>{{ next_lotofacil_draw.next_contest_number }}</strong>
+          </div>
+          <div>
+            Data:
+            <strong>{{ next_lotofacil_draw.next_contest_date }}</strong>
+          </div>
+          <div>
+            Valor acumulado:
+            <strong>{{ next_lotofacil_draw.next_accumulated_value }}</strong>
+          </div>
+        </div>
+        {% else %}
+        <p class="finance-sub" style="margin: 0">
+          Dados do proximo concurso indisponiveis no momento.
+        </p>
+        {% endif %}
+      </section>
 
       {% if messages %}
       <ul class="messages">
@@ -173,15 +419,110 @@
       </ul>
       {% endif %}
 
-      <div class="hint">
-        Formato esperado: colunas Concurso, Data Sorteio e Bola1 ate Bola15.
-      </div>
+      <section class="finance-block">
+        <h2 class="finance-title">Resumo financeiro recente</h2>
+        <p class="finance-sub">
+          Últimos até 30 registros ativos do controle financeiro.
+        </p>
 
-      <form id="uploadForm" method="post" enctype="multipart/form-data">
+        {% if financial_chart_data.has_data %}
+        <div class="finance-kpis">
+          <div class="finance-kpi">
+            Total investido
+            <strong
+              >R$ {{ home_total_invested|default:0|floatformat:2 }}</strong
+            >
+          </div>
+          <div class="finance-kpi">
+            Total retornado
+            <strong
+              >R$ {{ home_total_returned|default:0|floatformat:2 }}</strong
+            >
+          </div>
+          <div class="finance-kpi">
+            Saldo acumulado
+            <strong class="{% if home_total_balance < 0 %}negative{% endif %}">
+              R$ {{ home_total_balance|default:0|floatformat:2 }}
+            </strong>
+          </div>
+        </div>
+
+        <div class="chart-wrap">
+          <canvas id="financeChart" width="640" height="260"></canvas>
+          <div class="chart-legend">
+            <span
+              ><span class="legend-dot" style="background: #0b6e4f"></span
+              >Investido</span
+            >
+            <span
+              ><span class="legend-dot" style="background: #174d97"></span
+              >Retornado</span
+            >
+            <span
+              ><span class="legend-dot" style="background: #b42318"></span
+              >Saldo</span
+            >
+            <span
+              ><span class="legend-dot" style="background: #d97706"></span
+              >Ganhos/Perdas acumulado</span
+            >
+          </div>
+
+          <div class="chart-highlights">
+            <div class="highlight-item">
+              <span>Saldo acumulado:</span>
+              <strong
+                class="{% if home_total_balance < 0 %}negative{% endif %}"
+              >
+                R$ {{ home_total_balance|default:0|floatformat:2 }}
+              </strong>
+            </div>
+            <div class="highlight-item">
+              <span>ROI total:</span>
+              <strong class="{% if home_roi_percent < 0 %}negative{% endif %}">
+                {{ home_roi_percent|default:0|floatformat:2 }}%
+              </strong>
+            </div>
+            <div class="highlight-item">
+              <span>% de apostas lucrativas:</span>
+              <strong>
+                {{ home_profitable_bets_percent|default:0|floatformat:2 }}%
+              </strong>
+            </div>
+            <div class="highlight-item">
+              <span>Apostas lucrativas:</span>
+              <strong>{{ home_profitable_bets_count|default:0 }}</strong>
+            </div>
+            <div class="highlight-item">
+              <span>Apostas com prejuízo:</span>
+              <strong class="negative"
+                >{{ home_loss_bets_count|default:0 }}</strong
+              >
+            </div>
+          </div>
+        </div>
+
+        {{ financial_chart_data|json_script:"financialChartData" }} {% else %}
+        <p class="no-finance-data">
+          Ainda não existem registros financeiros para montar o gráfico.
+          Cadastre pelo menos um registro em Controle Financeiro.
+        </p>
+        {% endif %}
+      </section>
+
+      <form
+        id="uploadForm"
+        class="upload-form"
+        method="post"
+        enctype="multipart/form-data"
+      >
         {% csrf_token %}
+        <h3 class="upload-form-title">Enviar arquivo Excel</h3>
         <div class="upload-row">{{ form.file }}</div>
         {{ form.file.errors }}
-        <button id="submitButton" type="submit">Analisar arquivo</button>
+        <div class="upload-actions">
+          <button id="submitButton" type="submit">Analisar arquivo</button>
+        </div>
       </form>
     </main>
 
@@ -200,6 +541,174 @@
         submitButton.textContent = "Analisando...";
         loadingOverlay.classList.add("is-active");
       });
+
+      (function renderFinancialChart() {
+        const dataNode = document.getElementById("financialChartData");
+        const canvas = document.getElementById("financeChart");
+
+        if (!dataNode || !canvas) {
+          return;
+        }
+
+        const chartData = JSON.parse(dataNode.textContent);
+        const labels = chartData.labels || [];
+        const invested = chartData.invested || [];
+        const returned = chartData.returned || [];
+        const balance = chartData.balance || [];
+        const cumulativeBalance = chartData.cumulative_balance || [];
+
+        if (!labels.length) {
+          return;
+        }
+
+        const ctx = canvas.getContext("2d");
+        const width = canvas.width;
+        const height = canvas.height;
+        const padding = { top: 16, right: 16, bottom: 34, left: 44 };
+        const plotWidth = width - padding.left - padding.right;
+        const plotHeight = height - padding.top - padding.bottom;
+
+        const allValues = invested
+          .concat(returned)
+          .concat(balance)
+          .concat(cumulativeBalance);
+        const maxValue = Math.max.apply(null, allValues);
+        const minValue = Math.min.apply(null, allValues);
+        const range = Math.max(1, maxValue - minValue);
+
+        function yFromValue(value) {
+          const normalized = (value - minValue) / range;
+          return padding.top + (1 - normalized) * plotHeight;
+        }
+
+        function xFromIndex(index) {
+          if (labels.length === 1) {
+            return padding.left + plotWidth / 2;
+          }
+          return padding.left + (plotWidth * index) / (labels.length - 1);
+        }
+
+        function drawAxis() {
+          ctx.strokeStyle = "#c7d5e8";
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(padding.left, padding.top);
+          ctx.lineTo(padding.left, padding.top + plotHeight);
+          ctx.lineTo(padding.left + plotWidth, padding.top + plotHeight);
+          ctx.stroke();
+
+          ctx.fillStyle = "#5b6f94";
+          ctx.font = "11px Segoe UI";
+          ctx.textAlign = "center";
+
+          labels.forEach(function (label, index) {
+            if (labels.length > 10 && index % 2 !== 0) {
+              return;
+            }
+            const x = xFromIndex(index);
+            ctx.fillText(label, x, height - 12);
+          });
+        }
+
+        function drawSeries(series, color) {
+          if (!series.length) {
+            return;
+          }
+
+          ctx.strokeStyle = color;
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+
+          series.forEach(function (value, index) {
+            const x = xFromIndex(index);
+            const y = yFromValue(value);
+            if (index === 0) {
+              ctx.moveTo(x, y);
+            } else {
+              ctx.lineTo(x, y);
+            }
+          });
+
+          if (series.length > 1) {
+            ctx.stroke();
+          }
+
+          // Keep points visible even with only one register/day.
+          series.forEach(function (value, index) {
+            const x = xFromIndex(index);
+            const y = yFromValue(value);
+
+            ctx.beginPath();
+            ctx.fillStyle = "#ffffff";
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
+            ctx.arc(x, y, 3.5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+          });
+        }
+
+        function drawBalanceSeries(series) {
+          if (!series.length) {
+            return;
+          }
+
+          const positiveColor = "#0b6e4f";
+          const negativeColor = "#b42318";
+
+          for (let index = 1; index < series.length; index += 1) {
+            const prevValue = series[index - 1];
+            const currValue = series[index];
+            const prevX = xFromIndex(index - 1);
+            const prevY = yFromValue(prevValue);
+            const currX = xFromIndex(index);
+            const currY = yFromValue(currValue);
+
+            const segmentColor = currValue < 0 ? negativeColor : positiveColor;
+
+            ctx.beginPath();
+            ctx.strokeStyle = segmentColor;
+            ctx.lineWidth = 2;
+            ctx.moveTo(prevX, prevY);
+            ctx.lineTo(currX, currY);
+            ctx.stroke();
+          }
+
+          series.forEach(function (value, index) {
+            const x = xFromIndex(index);
+            const y = yFromValue(value);
+            const pointColor = value < 0 ? negativeColor : positiveColor;
+
+            ctx.beginPath();
+            ctx.fillStyle = "#ffffff";
+            ctx.strokeStyle = pointColor;
+            ctx.lineWidth = 2;
+            ctx.arc(x, y, 3.5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+          });
+        }
+
+        function drawGrid() {
+          ctx.strokeStyle = "#eef3fb";
+          ctx.lineWidth = 1;
+          const rows = 4;
+          for (let i = 0; i <= rows; i += 1) {
+            const y = padding.top + (plotHeight * i) / rows;
+            ctx.beginPath();
+            ctx.moveTo(padding.left, y);
+            ctx.lineTo(padding.left + plotWidth, y);
+            ctx.stroke();
+          }
+        }
+
+        drawGrid();
+        drawAxis();
+        drawSeries(invested, "#0b6e4f");
+        drawSeries(returned, "#174d97");
+        drawBalanceSeries(balance);
+        drawSeries(cumulativeBalance, "#d97706");
+      })();
     </script>
   </body>
 </html>

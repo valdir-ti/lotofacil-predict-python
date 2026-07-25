@@ -117,6 +117,46 @@
         text-decoration: none;
         font-weight: 600;
       }
+
+      .loading-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(23, 32, 58, 0.36);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 999;
+      }
+
+      .loading-overlay.active {
+        display: flex;
+      }
+
+      .loading-box {
+        background: #fff;
+        padding: 16px 18px;
+        border-radius: 12px;
+        box-shadow: 0 12px 32px rgba(25, 45, 88, 0.18);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 600;
+      }
+
+      .spinner {
+        width: 18px;
+        height: 18px;
+        border: 3px solid #dbeafe;
+        border-top-color: #0b6e4f;
+        border-radius: 50%;
+        animation: spin 0.85s linear infinite;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
     </style>
   </head>
   <body>
@@ -125,7 +165,7 @@
       <h1>{{ page_heading }}</h1>
       <p class="sub">{{ page_subtitle }}</p>
 
-      <form method="post">
+      <form method="post" data-db-request="true">
         {% csrf_token %}
 
         <div class="row">
@@ -174,5 +214,38 @@
         </div>
       </form>
     </main>
+
+    <div
+      id="loading-overlay"
+      class="loading-overlay"
+      aria-live="polite"
+      aria-hidden="true"
+    >
+      <div class="loading-box">
+        <div class="spinner" aria-hidden="true"></div>
+        <span>Salvando no banco de dados...</span>
+      </div>
+    </div>
+
+    <script>
+      (function () {
+        const form = document.querySelector('form[data-db-request="true"]');
+        const overlay = document.getElementById("loading-overlay");
+
+        if (!form || !overlay) {
+          return;
+        }
+
+        form.addEventListener("submit", function () {
+          const submitButton = form.querySelector('button[type="submit"]');
+          if (submitButton) {
+            submitButton.disabled = true;
+          }
+
+          overlay.classList.add("active");
+          overlay.setAttribute("aria-hidden", "false");
+        });
+      })();
+    </script>
   </body>
 </html>

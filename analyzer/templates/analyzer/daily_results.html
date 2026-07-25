@@ -8,7 +8,7 @@
       :root {
         --bg: #eff4fa;
         --card: #ffffff;
-                  <a class="button danger" href="/financeiro/{{ record.id }}/excluir/">Desativar</a>
+        --text: #17203a;
         --muted: #536589;
         --accent: #0f7b53;
         --line: #d6deeb;
@@ -156,12 +156,54 @@
         color: var(--muted);
         margin: 8px 0;
       }
+
+      .loading-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(23, 32, 58, 0.36);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 999;
+      }
+
+      .loading-overlay.active {
+        display: flex;
+      }
+
+      .loading-box {
+        background: #fff;
+        padding: 16px 18px;
+        border-radius: 12px;
+        box-shadow: 0 12px 32px rgba(25, 45, 88, 0.18);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 600;
+      }
+
+      .spinner {
+        width: 18px;
+        height: 18px;
+        border: 3px solid #dbeafe;
+        border-top-color: #0f7b53;
+        border-radius: 50%;
+        animation: spin 0.85s linear infinite;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
     </style>
   </head>
   <body>
     <div class="container">
       <div class="top-links">
-        <a class="top-link" href="/">&larr; Voltar para analise</a>
+        <a class="top-link" href="/" data-db-navigation="true"
+          >&larr; Voltar para analise</a
+        >
       </div>
 
       <h1>Controle de Investimento x Retorno</h1>
@@ -205,7 +247,9 @@
       <section class="card">
         <div class="actions">
           <h2 style="margin: 0">Historico diario</h2>
-          <a class="button" href="/financeiro/novo/">Novo registro</a>
+          <a class="button" href="/financeiro/novo/" data-db-navigation="true"
+            >Novo registro</a
+          >
         </div>
 
         {% if records %}
@@ -235,11 +279,13 @@
                   <a
                     class="button secondary"
                     href="/financeiro/{{ record.id }}/editar/"
+                    data-db-navigation="true"
                     >Editar</a
                   >
                   <a
                     class="button danger"
                     href="/financeiro/{{ record.id }}/excluir/"
+                    data-db-navigation="true"
                     >Desativar</a
                   >
                 </div>
@@ -253,5 +299,35 @@
         {% endif %}
       </section>
     </div>
+
+    <div
+      id="loading-overlay"
+      class="loading-overlay"
+      aria-live="polite"
+      aria-hidden="true"
+    >
+      <div class="loading-box">
+        <div class="spinner" aria-hidden="true"></div>
+        <span>Carregando dados financeiros...</span>
+      </div>
+    </div>
+
+    <script>
+      (function () {
+        const overlay = document.getElementById("loading-overlay");
+        const links = document.querySelectorAll('a[data-db-navigation="true"]');
+
+        if (!overlay || !links.length) {
+          return;
+        }
+
+        links.forEach(function (link) {
+          link.addEventListener("click", function () {
+            overlay.classList.add("active");
+            overlay.setAttribute("aria-hidden", "false");
+          });
+        });
+      })();
+    </script>
   </body>
 </html>
