@@ -16,3 +16,8 @@ venv/
 
 # IDE
 .vscode/
+
+# Environment
+.env
+.env.*
+!.env.example
