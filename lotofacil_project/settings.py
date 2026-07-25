@@ -25,6 +25,9 @@ def env_list(name, default=''):
 SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-dev-only-change-me')
 DEBUG = env_bool('DEBUG', default=True)
 ALLOWED_HOSTS = env_list('ALLOWED_HOSTS', default='localhost,127.0.0.1')
+render_hostname = os.getenv('RENDER_EXTERNAL_HOSTNAME')
+if render_hostname and render_hostname not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append(render_hostname)
 CSRF_TRUSTED_ORIGINS = env_list('CSRF_TRUSTED_ORIGINS')
 CORS_ALLOWED_ORIGINS = env_list('CORS_ALLOWED_ORIGINS')
 
@@ -124,7 +127,10 @@ USE_TZ = True
 
 
 STATIC_URL = '/static/'
-STATICFILES_DIRS = [BASE_DIR / 'static']
+STATICFILES_DIRS = []
+project_static_dir = BASE_DIR / 'static'
+if project_static_dir.exists():
+    STATICFILES_DIRS.append(project_static_dir)
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
