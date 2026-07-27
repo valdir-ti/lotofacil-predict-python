@@ -1,9 +1,33 @@
+from datetime import datetime
 from decimal import Decimal, InvalidOperation
 import json
 from urllib.error import URLError
 from urllib.request import Request, urlopen
 
 LOTOFACIL_API_URL = 'https://servicebus2.caixa.gov.br/portaldeloterias/api/lotofacil'
+
+
+def _normalize_contest_date(value):
+    if value is None:
+        return None
+
+    if not isinstance(value, str):
+        value = str(value)
+
+    raw_value = value.strip()
+    if not raw_value:
+        return None
+
+    # API da Caixa costuma retornar DD/MM/YYYY, mas aceitamos alguns formatos
+    # comuns para manter compatibilidade em caso de ajuste no endpoint.
+    for date_format in ('%d/%m/%Y', '%Y-%m-%d', '%d-%m-%Y'):
+        try:
+            parsed = datetime.strptime(raw_value, date_format).date()
+            return parsed.strftime('%d/%m/%Y')
+        except ValueError:
+            continue
+
+    return None
 
 
 def _format_brl(value):
@@ -22,14 +46,25 @@ def fetch_next_lotofacil_draw(timeout=4):
         LOTOFACIL_API_URL,
         headers={
             'User-Agent': 'Mozilla/5.0',
-            'Accept': 'application/json',
+            'Accept': 'application/json, text/plain, */*',
+            'Referer': 'https://loterias.caixa.gov.br/',
+            'Origin': 'https://loterias.caixa.gov.br',
+            'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
         },
     )
 
     try:
         with urlopen(request, timeout=timeout) as response:
-            payload = json.loads(response.read().decode('utf-8'))
-    except (URLError, TimeoutError, json.JSONDecodeError, ValueError):
+            payload = json.loads(response.read().decode('utf-8-sig'))
+    except (URLError, TimeoutError, UnicodeDecodeError, json.JSONDecodeError, ValueError):
+        return {
+            'has_data': False,
+            'next_contest_number': None,
+            'next_contest_date': None,
+            'next_accumulated_value': None,
+        }
+
+    if not isinstance(payload, dict):
         return {
             'has_data': False,
             'next_contest_number': None,
@@ -42,7 +77,7 @@ def fetch_next_lotofacil_draw(timeout=4):
     if next_contest_number is None and isinstance(current_contest_number, int):
         next_contest_number = current_contest_number + 1
 
-    next_contest_date = payload.get('dataProximoConcurso')
+    next_contest_date = _normalize_contest_date(payload.get('dataProximoConcurso'))
 
     next_accumulated = payload.get('valorEstimadoProximoConcurso')
     if next_accumulated is None:
