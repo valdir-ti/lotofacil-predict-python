@@ -93,16 +93,55 @@ class LotofacilApiServiceTests(SimpleTestCase):
 
     @patch('analyzer.services.lotofacil_api.urlopen')
     def test_returns_unavailable_when_next_date_cannot_be_parsed(self, mock_urlopen):
-        payload = {
+        payload_primary = {
             'numero': 3745,
             'numeroConcursoProximo': 3746,
             'dataProximoConcurso': '27-2026-07',
             'valorEstimadoProximoConcurso': 9000000.0,
         }
-        mock_urlopen.return_value = _MockHttpResponse(json.dumps(payload).encode('utf-8'))
+        payload_fallback = {
+            'concurso': 3745,
+            'proximoConcurso': 3746,
+            'dataProximoConcurso': 'invalid-date',
+            'valorEstimadoProximoConcurso': 9000000.0,
+        }
+        mock_urlopen.side_effect = [
+            _MockHttpResponse(json.dumps(payload_primary).encode('utf-8')),
+            _MockHttpResponse(json.dumps(payload_fallback).encode('utf-8')),
+        ]
 
         result = fetch_next_lotofacil_draw()
 
         self.assertFalse(result['has_data'])
-        self.assertEqual(result['next_contest_number'], 3746)
+        self.assertIsNone(result['next_contest_number'])
         self.assertIsNone(result['next_contest_date'])
+
+    @patch('analyzer.services.lotofacil_api.urlopen')
+    def test_uses_fallback_api_when_primary_fails(self, mock_urlopen):
+        fallback_payload = {
+            'concurso': 3745,
+            'proximoConcurso': 3746,
+            'dataProximoConcurso': '27/07/2026',
+            'valorEstimadoProximoConcurso': 9000000.0,
+        }
+        mock_urlopen.side_effect = [
+            URLError('primary down'),
+            _MockHttpResponse(json.dumps(fallback_payload).encode('utf-8')),
+        ]
+
+        result = fetch_next_lotofacil_draw()
+
+        self.assertTrue(result['has_data'])
+        self.assertEqual(result['next_contest_number'], 3746)
+        self.assertEqual(result['next_contest_date'], '27/07/2026')
+
+    @patch('analyzer.services.lotofacil_api.urlopen')
+    def test_returns_unavailable_when_primary_and_fallback_fail(self, mock_urlopen):
+        mock_urlopen.side_effect = [URLError('primary down'), URLError('fallback down')]
+
+        result = fetch_next_lotofacil_draw()
+
+        self.assertFalse(result['has_data'])
+        self.assertIsNone(result['next_contest_number'])
+        self.assertIsNone(result['next_contest_date'])
+        self.assertIsNone(result['next_accumulated_value'])

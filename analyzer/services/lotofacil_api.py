@@ -5,6 +5,7 @@ from urllib.error import URLError
 from urllib.request import Request, urlopen
 
 LOTOFACIL_API_URL = 'https://servicebus2.caixa.gov.br/portaldeloterias/api/lotofacil'
+LOTOFACIL_API_FALLBACK_URL = 'https://loteriascaixa-api.herokuapp.com/api/lotofacil/latest'
 
 
 def _normalize_contest_date(value):
@@ -41,9 +42,18 @@ def _format_brl(value):
     return f'R$ {formatted}'
 
 
-def fetch_next_lotofacil_draw(timeout=4):
-    request = Request(
-        LOTOFACIL_API_URL,
+def _build_unavailable_response():
+    return {
+        'has_data': False,
+        'next_contest_number': None,
+        'next_contest_date': None,
+        'next_accumulated_value': None,
+    }
+
+
+def _build_request(url):
+    return Request(
+        url,
         headers={
             'User-Agent': 'Mozilla/5.0',
             'Accept': 'application/json, text/plain, */*',
@@ -53,27 +63,21 @@ def fetch_next_lotofacil_draw(timeout=4):
         },
     )
 
-    try:
-        with urlopen(request, timeout=timeout) as response:
-            payload = json.loads(response.read().decode('utf-8-sig'))
-    except (URLError, TimeoutError, UnicodeDecodeError, json.JSONDecodeError, ValueError):
-        return {
-            'has_data': False,
-            'next_contest_number': None,
-            'next_contest_date': None,
-            'next_accumulated_value': None,
-        }
+
+def _fetch_payload(url, timeout):
+    request = _build_request(url)
+    with urlopen(request, timeout=timeout) as response:
+        payload = json.loads(response.read().decode('utf-8-sig'))
 
     if not isinstance(payload, dict):
-        return {
-            'has_data': False,
-            'next_contest_number': None,
-            'next_contest_date': None,
-            'next_accumulated_value': None,
-        }
+        raise ValueError('Payload da API nao e um objeto JSON.')
 
-    current_contest_number = payload.get('numero')
-    next_contest_number = payload.get('numeroConcursoProximo')
+    return payload
+
+
+def _extract_contest_data(payload):
+    current_contest_number = payload.get('numero') or payload.get('concurso')
+    next_contest_number = payload.get('numeroConcursoProximo') or payload.get('proximoConcurso')
     if next_contest_number is None and isinstance(current_contest_number, int):
         next_contest_number = current_contest_number + 1
 
@@ -89,3 +93,16 @@ def fetch_next_lotofacil_draw(timeout=4):
         'next_contest_date': next_contest_date,
         'next_accumulated_value': _format_brl(next_accumulated),
     }
+
+
+def fetch_next_lotofacil_draw(timeout=4):
+    for api_url in (LOTOFACIL_API_URL, LOTOFACIL_API_FALLBACK_URL):
+        try:
+            payload = _fetch_payload(api_url, timeout=timeout)
+            contest_data = _extract_contest_data(payload)
+            if contest_data['has_data']:
+                return contest_data
+        except (URLError, TimeoutError, UnicodeDecodeError, json.JSONDecodeError, ValueError):
+            continue
+
+    return _build_unavailable_response()
