@@ -37,9 +37,9 @@ class HomeViewTests(TestCase):
 
         response = self.client.get('/')
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Analise de Resultados da Lotofacil')
+        self.assertContains(response, 'Análise de Resultados da Lotofácil')
         self.assertContains(response, 'Resumo financeiro recente')
-        self.assertContains(response, 'Proximo concurso da Lotofacil')
+        self.assertContains(response, 'Próximo concurso da Lotofácil')
         self.assertContains(response, '3744')
         self.assertContains(response, '24/07/2026')
         self.assertContains(response, 'R$ 2.000.000,00')
