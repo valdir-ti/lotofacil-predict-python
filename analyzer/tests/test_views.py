@@ -97,7 +97,7 @@ class HomeViewTests(TestCase):
         response = self.client.get('/')
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Dados do proximo concurso indisponiveis no momento.')
+        self.assertContains(response, 'Dados do próximo concurso indisponíveis no momento.')
 
     def test_upload_excel_and_get_results(self):
         file_data = _excel_payload()

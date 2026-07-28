@@ -93,11 +93,18 @@
         padding: 10px 12px;
       }
 
+      .table-responsive {
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+
       table {
         width: 100%;
         border-collapse: collapse;
         margin-top: 8px;
         font-size: 0.95rem;
+        min-width: 640px;
       }
 
       th,
@@ -196,6 +203,38 @@
           transform: rotate(360deg);
         }
       }
+
+      @media (max-width: 768px) {
+        body {
+          padding: 12px;
+        }
+
+        .summary {
+          grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+          gap: 10px;
+        }
+
+        .kpi {
+          font-size: 1.5rem;
+        }
+
+        .actions {
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 10px;
+        }
+
+        .actions .button {
+          width: 100%;
+          text-align: center;
+        }
+      }
+
+      @media (max-width: 480px) {
+        .summary {
+          grid-template-columns: 1fr;
+        }
+      }
     </style>
   </head>
   <body>
@@ -253,47 +292,49 @@
         </div>
 
         {% if records %}
-        <table>
-          <thead>
-            <tr>
-              <th>Data</th>
-              <th>Concurso</th>
-              <th>Investido</th>
-              <th>Retornado</th>
-              <th>Saldo</th>
-              <th>Observacao</th>
-              <th>Acoes</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for record in records %}
-            <tr>
-              <td>{{ record.play_date|date:'d/m/Y' }}</td>
-              <td>{{ record.concurso|default:'-' }}</td>
-              <td>R$ {{ record.invested_amount|floatformat:2 }}</td>
-              <td>R$ {{ record.returned_amount|floatformat:2 }}</td>
-              <td>R$ {{ record.balance|floatformat:2 }}</td>
-              <td>{{ record.notes|default:'-' }}</td>
-              <td>
-                <div class="row-actions">
-                  <a
-                    class="button secondary"
-                    href="/financeiro/{{ record.id }}/editar/"
-                    data-db-navigation="true"
-                    >Editar</a
-                  >
-                  <a
-                    class="button danger"
-                    href="/financeiro/{{ record.id }}/excluir/"
-                    data-db-navigation="true"
-                    >Desativar</a
-                  >
-                </div>
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Data</th>
+                <th>Concurso</th>
+                <th>Investido</th>
+                <th>Retornado</th>
+                <th>Saldo</th>
+                <th>Observacao</th>
+                <th>Acoes</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for record in records %}
+              <tr>
+                <td>{{ record.play_date|date:'d/m/Y' }}</td>
+                <td>{{ record.concurso|default:'-' }}</td>
+                <td>R$ {{ record.invested_amount|floatformat:2 }}</td>
+                <td>R$ {{ record.returned_amount|floatformat:2 }}</td>
+                <td>R$ {{ record.balance|floatformat:2 }}</td>
+                <td>{{ record.notes|default:'-' }}</td>
+                <td>
+                  <div class="row-actions">
+                    <a
+                      class="button secondary"
+                      href="/financeiro/{{ record.id }}/editar/"
+                      data-db-navigation="true"
+                      >Editar</a
+                    >
+                    <a
+                      class="button danger"
+                      href="/financeiro/{{ record.id }}/excluir/"
+                      data-db-navigation="true"
+                      >Desativar</a
+                    >
+                  </div>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
         {% else %}
         <p class="empty">Nenhum registro cadastrado ainda.</p>
         {% endif %}
