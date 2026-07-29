@@ -26,7 +26,7 @@ class DailyBetResultForm(forms.ModelForm):
         label='Data do jogo',
         input_formats=['%d/%m/%Y', '%Y-%m-%d', '%Y-%m-%dT%H:%M:%S'],
         widget=forms.DateInput(format='%Y-%m-%d', attrs={'type': 'date'}),
-        help_text='Selecione a data no calendario.',
+        help_text='Selecione a data no calendário.',
     )
 
     class Meta:
@@ -36,7 +36,7 @@ class DailyBetResultForm(forms.ModelForm):
             'concurso': 'Concurso (opcional)',
             'invested_amount': 'Valor investido (R$)',
             'returned_amount': 'Valor retornado (R$)',
-            'notes': 'Observacao',
+            'notes': 'Observação',
         }
         widgets = {
             'invested_amount': forms.NumberInput(attrs={'step': '0.01', 'min': '0'}),
@@ -52,5 +52,5 @@ class DailyBetResultForm(forms.ModelForm):
             queryset = queryset.exclude(pk=self.instance.pk)
 
         if queryset.exists():
-            raise forms.ValidationError('Ja existe um registro para esta data.')
+            raise forms.ValidationError('Já existe um registro para esta data.')
         return play_date

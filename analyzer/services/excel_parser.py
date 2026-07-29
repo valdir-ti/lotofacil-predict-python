@@ -224,10 +224,10 @@ def parse_lotofacil_excel(uploaded_file) -> ParseResult:
     messages = best['messages']
 
     if invalid_rows > 0:
-        messages.insert(0, f'{invalid_rows} linha(s) invalidas foram ignoradas.')
+        messages.insert(0, f'{invalid_rows} linha(s) inválidas foram ignoradas.')
 
     if len(candidates) > 1:
-        messages.insert(0, f"Aba selecionada para analise: {best['sheet']}.")
+        messages.insert(0, f"Aba selecionada para análise: {best['sheet']}.")
 
     return ParseResult(
         draws=draws,

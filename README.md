@@ -45,8 +45,8 @@ Com base nos concursos validos, calcula:
 
 - dezenas mais e menos frequentes;
 - dezenas atrasadas;
-- medias de pares/impares, soma e repeticao;
-- distribuicao de padroes;
+- médias de pares/ímpares, soma e repetição;
+- distribuicao de padrões;
 - 3 jogos recomendados com regras heuristicas.
 
 Implementacao principal em [analyzer/services/metrics.py](analyzer/services/metrics.py).
