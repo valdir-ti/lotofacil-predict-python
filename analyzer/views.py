@@ -157,7 +157,7 @@ def daily_result_create(request):
 	context = {
 		'form': form,
 		'page_title': 'Novo Registro Financeiro',
-		'page_heading': 'Novo Registro Diario',
+		'page_heading': 'Novo Registro Diário',
 		'page_subtitle': 'Salve o valor investido e o valor retornado do dia.',
 		'submit_label': 'Salvar registro',
 	}
@@ -179,9 +179,9 @@ def daily_result_edit(request, record_id):
 		'form': form,
 		'record': record,
 		'page_title': 'Editar Registro Financeiro',
-		'page_heading': 'Editar Registro Diario',
+		'page_heading': 'Editar Registro Diário',
 		'page_subtitle': 'Atualize os dados do registro selecionado.',
-		'submit_label': 'Salvar alteracoes',
+		'submit_label': 'Salvar alterações',
 	}
 	return render(request, 'analyzer/daily_result_form.html', context)
 
