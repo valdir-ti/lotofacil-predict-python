@@ -144,3 +144,10 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 SESSION_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_SECURE = not DEBUG
+
+# OpenAI configuration for lottery predictions.
+LLM_PROVIDER = os.getenv('LLM_PROVIDER', 'openai').strip().lower()
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+OPENAI_MODEL = os.getenv('OPENAI_MODEL', 'gpt-5.4-nano')
+LLM_MAX_DRAWS = int(os.getenv('LLM_MAX_DRAWS', '500'))
+LLM_GAME_COUNT = int(os.getenv('LLM_GAME_COUNT', '3'))

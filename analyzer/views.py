@@ -1,6 +1,8 @@
+import logging
 from decimal import Decimal
 
 from django.contrib import messages
+from django.conf import settings
 from django.db.models import Count, Sum
 from django.utils import timezone
 from django.shortcuts import get_object_or_404, redirect, render
@@ -10,6 +12,13 @@ from .models import DailyBetResult
 from .services.excel_parser import parse_lotofacil_excel
 from .services.lotofacil_api import fetch_next_lotofacil_draw
 from .services.metrics import build_dashboard_metrics
+from .services.chatgpt_client import generate_games_from_excel_file
+from django.http import JsonResponse
+from django.views.decorators.http import require_POST
+from django.views.decorators.csrf import csrf_exempt
+
+
+logger = logging.getLogger(__name__)
 
 
 def _financial_chart_data():
@@ -84,12 +93,33 @@ def home(request):
 		form = ExcelUploadForm(request.POST, request.FILES)
 		if form.is_valid():
 			try:
-				parse_result = parse_lotofacil_excel(form.cleaned_data['file'])
+				uploaded_file = form.cleaned_data['file']
+				parse_result = parse_lotofacil_excel(uploaded_file)
 				dashboard = build_dashboard_metrics(parse_result.draws)
+				ai_games = []
+				ai_notes = ''
+				ai_error = ''
+				try:
+					uploaded_file.seek(0)
+					prediction = generate_games_from_excel_file(uploaded_file)
+					model_result = prediction['model_result']
+					ai_games = model_result['recommended_games']
+					ai_notes = model_result['meta']['notes']
+				except Exception:
+					logger.exception('Falha ao gerar recomendações com a IA.')
+					ai_error = (
+						'A IA não respondeu com uma recomendação válida. '
+						'A análise heurística continua disponível abaixo.'
+					)
 				context = {
 					'form': form,
 					'parse_result': parse_result,
 					'dashboard': dashboard,
+					'ai_games': ai_games,
+					'ai_notes': ai_notes,
+					'ai_used_draws': min(len(parse_result.draws), settings.LLM_MAX_DRAWS),
+					'ai_game_count': settings.LLM_GAME_COUNT,
+					'ai_error': ai_error,
 				}
 				return render(request, 'analyzer/results.html', context)
 			except ValueError as exc:
@@ -205,3 +235,18 @@ def daily_result_delete(request, record_id):
 		'record_returned_amount': f'{record.returned_amount:.2f}',
 	}
 	return render(request, 'analyzer/daily_result_delete.html', context)
+
+
+@csrf_exempt
+@require_POST
+def upload_and_predict(request):
+	uploaded_file = request.FILES.get('file')
+	if not uploaded_file:
+		return JsonResponse({'error': 'file is required'}, status=400)
+
+	try:
+		result = generate_games_from_excel_file(uploaded_file)
+	except Exception as e:
+		return JsonResponse({'error': str(e)}, status=500)
+
+	return JsonResponse(result)
