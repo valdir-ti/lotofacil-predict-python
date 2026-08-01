@@ -25,6 +25,24 @@ def _excel_payload():
     return output.read()
 
 
+def _model_prediction():
+    games = [
+        {
+            'numbers': list(range(start, start + 15)),
+            'score': 0.8,
+            'rationale': 'Jogo de teste da IA.',
+        }
+        for start in range(1, 4)
+    ]
+    return {
+        'model_result': {
+            'meta': {'used_draws': 1, 'notes': 'Análise de teste.'},
+            'recommended_games': games,
+        },
+        'raw_arrays': {},
+    }
+
+
 class HomeViewTests(TestCase):
     @patch('analyzer.views.fetch_next_lotofacil_draw')
     def test_home_page_loads(self, mock_next_draw):
@@ -99,7 +117,9 @@ class HomeViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Dados do próximo concurso indisponíveis no momento.')
 
-    def test_upload_excel_and_get_results(self):
+    @patch('analyzer.views.generate_games_from_excel_file')
+    def test_upload_excel_and_get_results(self, mock_predict):
+        mock_predict.return_value = _model_prediction()
         file_data = _excel_payload()
         uploaded = SimpleUploadedFile(
             'lotofacil.xlsx',
@@ -112,7 +132,41 @@ class HomeViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Dashboard de Resultados')
         self.assertContains(response, 'Todos os indicadores abaixo usam 100% dos concursos válidos')
-        self.assertContains(response, '3 jogos recomendados')
+        self.assertContains(response, '3 jogos recomendados pela IA')
+        self.assertContains(response, '3 jogos recomendados pela análise local')
+        self.assertContains(response, 'Jogo de teste da IA.')
+        self.assertContains(response, '>01<')
+
+    @patch('analyzer.views.generate_games_from_excel_file')
+    def test_upload_excel_keeps_local_games_when_ai_fails(self, mock_predict):
+        mock_predict.side_effect = ValueError('OpenAI unavailable')
+        uploaded = SimpleUploadedFile(
+            'lotofacil.xlsx',
+            _excel_payload(),
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        )
+
+        response = self.client.post('/', {'file': uploaded})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '3 jogos recomendados pela análise local')
+        self.assertContains(response, 'A IA não respondeu com uma recomendação válida.')
+        self.assertNotContains(response, '3 jogos recomendados pela IA')
+
+    @patch('analyzer.views.generate_games_from_excel_file')
+    def test_prediction_api_omits_graph_payloads(self, mock_predict):
+        mock_predict.return_value = _model_prediction()
+        uploaded = SimpleUploadedFile(
+            'lotofacil.xlsx',
+            _excel_payload(),
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        )
+
+        response = self.client.post('/predict/upload/', {'file': uploaded})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('model_result', response.json())
+        self.assertNotIn('graphs', response.json())
 
 
 class FinancialViewsTests(TestCase):
