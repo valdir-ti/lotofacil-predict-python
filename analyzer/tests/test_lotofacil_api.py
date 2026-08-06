@@ -1,10 +1,11 @@
 import json
+from decimal import Decimal
 from urllib.error import URLError
 from unittest.mock import patch
 
 from django.test import SimpleTestCase
 
-from analyzer.services.lotofacil_api import fetch_next_lotofacil_draw
+from analyzer.services.lotofacil_api import fetch_lotofacil_result, fetch_next_lotofacil_draw
 
 
 class _MockHttpResponse:
@@ -145,3 +146,35 @@ class LotofacilApiServiceTests(SimpleTestCase):
         self.assertIsNone(result['next_contest_number'])
         self.assertIsNone(result['next_contest_date'])
         self.assertIsNone(result['next_accumulated_value'])
+
+
+class LotofacilResultServiceTests(SimpleTestCase):
+    @patch('analyzer.services.lotofacil_api.urlopen')
+    def test_returns_drawn_numbers_and_prizes_when_available(self, mock_urlopen):
+        payload = {
+            'numero': 3752,
+            'dezenasSorteadasOrdemSorteio': [str(n) for n in range(1, 16)],
+            'listaRateioPremio': [
+                {'faixa': 1, 'numeroDeGanhadores': 2, 'valorPremio': 500000.0},
+                {'faixa': 5, 'numeroDeGanhadores': 0, 'valorPremio': 0},
+            ],
+        }
+        mock_urlopen.return_value = _MockHttpResponse(json.dumps(payload).encode('utf-8'))
+
+        result = fetch_lotofacil_result(3752)
+
+        self.assertTrue(result['has_data'])
+        self.assertEqual(result['drawn_numbers'], set(range(1, 16)))
+        self.assertEqual(result['prize_by_hits'][15], Decimal('500000.0'))
+        self.assertNotIn(11, result['prize_by_hits'])
+
+    @patch('analyzer.services.lotofacil_api.urlopen')
+    def test_returns_unavailable_when_contest_not_drawn_yet(self, mock_urlopen):
+        mock_urlopen.side_effect = URLError('not found')
+
+        result = fetch_lotofacil_result(9999999)
+
+        self.assertFalse(result['has_data'])
+        self.assertIsNone(result['drawn_numbers'])
+        self.assertEqual(result['prize_by_hits'], {})
+

@@ -90,6 +90,16 @@
         font-size: 0.9rem;
       }
 
+      .warning-box {
+        margin-top: 8px;
+        padding: 10px 12px;
+        border-left: 4px solid #d97706;
+        border-radius: 6px;
+        background: #fff7ed;
+        color: #7c2d12;
+        font-size: 0.9rem;
+      }
+
       .row {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -208,6 +218,29 @@
           {{ form.notes }} {{ form.notes.errors }}
         </div>
 
+        {% if show_games_field %}
+        <div>
+          <label for="{{ form.games.id_for_label }}">{{ form.games.label }}</label>
+          {{ form.games }} {{ form.games.errors }}
+          <span class="helptext">{{ form.games.help_text }}</span>
+          {% if show_games_confirmation %}
+          <div class="warning-box">
+            Alterar, incluir ou remover jogos pode invalidar acertos e prêmios já
+            registrados. Os jogos alterados voltarão para “Aguardando sorteio”.
+          </div>
+          <div style="margin-top: 10px">
+            {{ form.confirm_games_change }}
+            <label
+              for="{{ form.confirm_games_change.id_for_label }}"
+              style="display: inline; margin-left: 6px"
+              >{{ form.confirm_games_change.label }}</label
+            >
+            {{ form.confirm_games_change.errors }}
+          </div>
+          {% endif %}
+        </div>
+        {% endif %}
+
         <div class="actions">
           <button class="button" type="submit">{{ submit_label }}</button>
           <a class="button-link" href="/financeiro/">Cancelar</a>
@@ -231,12 +264,33 @@
       (function () {
         const form = document.querySelector('form[data-db-request="true"]');
         const overlay = document.getElementById("loading-overlay");
+        const gamesField = document.getElementById("id_games");
+        const gamesConfirmation = document.getElementById(
+          "id_confirm_games_change"
+        );
+        const initialGames = gamesField ? gamesField.defaultValue : "";
 
         if (!form || !overlay) {
           return;
         }
 
-        form.addEventListener("submit", function () {
+        form.addEventListener("submit", function (event) {
+          if (
+            gamesField &&
+            gamesConfirmation &&
+            gamesField.value !== initialGames &&
+            !gamesConfirmation.checked
+          ) {
+            const confirmed = window.confirm(
+              "Os jogos foram alterados. Deseja realmente salvar essa alteração?"
+            );
+            if (!confirmed) {
+              event.preventDefault();
+              return;
+            }
+            gamesConfirmation.checked = true;
+          }
+
           const submitButton = form.querySelector('button[type="submit"]');
           if (submitButton) {
             submitButton.disabled = true;

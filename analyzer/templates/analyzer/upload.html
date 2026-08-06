@@ -244,8 +244,32 @@
         background: linear-gradient(135deg, #173a6a, #0c2344);
         color: #dce8ff;
         display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 10px 12px;
+        gap: 12px;
+      }
+
+      .highlight-group {
+        padding: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 9px;
+      }
+
+      .highlight-group-title {
+        margin: 0 0 2px;
+        color: #ffffff;
+        font-size: 0.88rem;
+      }
+
+      .highlight-group-description {
+        margin: 0 0 8px;
+        color: #b9cceb;
+        font-size: 0.76rem;
+        line-height: 1.3;
+      }
+
+      .highlight-group-items {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
       }
 
       .highlight-item {
@@ -273,8 +297,8 @@
       }
 
       @media (max-width: 860px) {
-        .chart-highlights {
-          grid-template-columns: repeat(2, minmax(0, 1fr));
+        .highlight-group-items {
+          grid-template-columns: 1fr;
         }
       }
 
@@ -466,39 +490,73 @@
               ><span class="legend-dot" style="background: #d97706"></span
               >Ganhos/Perdas acumulado</span
             >
+            <span
+              ><span class="legend-dot" style="background: #eab308"></span
+              >🏆 Dia com jogo contemplado</span
+            >
           </div>
 
           <div class="chart-highlights">
-            <div class="highlight-item">
-              <span>Saldo acumulado:</span>
-              <strong
-                class="{% if home_total_balance < 0 %}negative{% endif %}"
-              >
-                R$ {{ home_total_balance|default:0|floatformat:2 }}
-              </strong>
-            </div>
-            <div class="highlight-item">
-              <span>ROI total:</span>
-              <strong class="{% if home_roi_percent < 0 %}negative{% endif %}">
-                {{ home_roi_percent|default:0|floatformat:2 }}%
-              </strong>
-            </div>
-            <div class="highlight-item">
-              <span>% de apostas lucrativas:</span>
-              <strong>
-                {{ home_profitable_bets_percent|default:0|floatformat:2 }}%
-              </strong>
-            </div>
-            <div class="highlight-item">
-              <span>Apostas lucrativas:</span>
-              <strong>{{ home_profitable_bets_count|default:0 }}</strong>
-            </div>
-            <div class="highlight-item">
-              <span>Apostas com prejuízo:</span>
-              <strong class="negative"
-                >{{ home_loss_bets_count|default:0 }}</strong
-              >
-            </div>
+            <section class="highlight-group">
+              <h3 class="highlight-group-title">Resultado financeiro</h3>
+              <p class="highlight-group-description">
+                Mostra o retorno total dos registros financeiros.
+              </p>
+              <div class="highlight-group-items">
+                <div class="highlight-item">
+                  <span>Saldo acumulado:</span>
+                  <strong
+                    class="{% if home_total_balance < 0 %}negative{% endif %}"
+                  >
+                    R$ {{ home_total_balance|default:0|floatformat:2 }}
+                  </strong>
+                </div>
+                <div class="highlight-item">
+                  <span>ROI total:</span>
+                  <strong class="{% if home_roi_percent < 0 %}negative{% endif %}">
+                    {{ home_roi_percent|default:0|floatformat:2 }}%
+                  </strong>
+                </div>
+              </div>
+            </section>
+
+            <section class="highlight-group">
+              <h3 class="highlight-group-title">Dias com resultado</h3>
+              <p class="highlight-group-description">
+                Compara dias lucrativos com dias que tiveram algum jogo contemplado.
+              </p>
+              <div class="highlight-group-items">
+                <div class="highlight-item">
+                  <span>% de dias lucrativos:</span>
+                  <strong>
+                    {{ home_profitable_bets_percent|default:0|floatformat:2 }}%
+                  </strong>
+                </div>
+                <div class="highlight-item">
+                  <span>Dias com jogo contemplado:</span>
+                  <strong>{{ home_contemplated_days_count|default:0 }}</strong>
+                </div>
+              </div>
+            </section>
+
+            <section class="highlight-group">
+              <h3 class="highlight-group-title">Contagem de dias</h3>
+              <p class="highlight-group-description">
+                Quantidade de registros com saldo positivo ou negativo.
+              </p>
+              <div class="highlight-group-items">
+                <div class="highlight-item">
+                  <span>Dias lucrativos:</span>
+                  <strong>{{ home_profitable_bets_count|default:0 }}</strong>
+                </div>
+                <div class="highlight-item">
+                  <span>Dias com prejuízo:</span>
+                  <strong class="negative"
+                    >{{ home_loss_bets_count|default:0 }}</strong
+                  >
+                </div>
+              </div>
+            </section>
           </div>
         </div>
 
@@ -556,6 +614,7 @@
         const returned = chartData.returned || [];
         const balance = chartData.balance || [];
         const cumulativeBalance = chartData.cumulative_balance || [];
+        const contemplated = chartData.contemplated || [];
 
         if (!labels.length) {
           return;
@@ -702,12 +761,41 @@
           }
         }
 
+        function drawContemplatedMarkers(flags, series) {
+          if (!flags.length || !series.length) {
+            return;
+          }
+
+          flags.forEach(function (isContemplated, index) {
+            if (!isContemplated) {
+              return;
+            }
+
+            const x = xFromIndex(index);
+            const y = yFromValue(series[index]);
+
+            ctx.beginPath();
+            ctx.fillStyle = "#eab308";
+            ctx.strokeStyle = "#a16207";
+            ctx.lineWidth = 2;
+            ctx.arc(x, y, 6.5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.font = "12px Segoe UI";
+            ctx.textAlign = "center";
+            ctx.fillStyle = "#a16207";
+            ctx.fillText("🏆", x, y - 12);
+          });
+        }
+
         drawGrid();
         drawAxis();
         drawSeries(invested, "#0b6e4f");
         drawSeries(returned, "#174d97");
         drawBalanceSeries(balance);
         drawSeries(cumulativeBalance, "#d97706");
+        drawContemplatedMarkers(contemplated, cumulativeBalance);
       })();
     </script>
   </body>

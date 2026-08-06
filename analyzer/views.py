@@ -1,14 +1,19 @@
+import json
 import logging
 from decimal import Decimal
 
 from django.contrib import messages
 from django.conf import settings
+from django.core.paginator import Paginator
+from django.db import transaction
 from django.db.models import Count, Sum
 from django.utils import timezone
 from django.shortcuts import get_object_or_404, redirect, render
 
-from .forms import DailyBetResultForm, ExcelUploadForm
-from .models import DailyBetResult
+from .forms import DailyBetResultForm, ExcelUploadForm, ManualGameForm
+from .models import ConfirmedGame, DailyBetResult
+from .services.bet_checker import check_pending_games
+from .services.bet_confirmation import InvalidGameError, confirm_ai_games
 from .services.excel_parser import parse_lotofacil_excel
 from .services.lotofacil_api import fetch_next_lotofacil_draw
 from .services.metrics import build_dashboard_metrics
@@ -18,12 +23,17 @@ from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import csrf_exempt
 
 
+DAILY_RESULTS_PAGE_SIZE = 10
+
+
 logger = logging.getLogger(__name__)
 
 
 def _financial_chart_data():
 	records = list(
-		DailyBetResult.active_objects.active().order_by('play_date')[:30]
+		DailyBetResult.active_objects.active()
+		.prefetch_related('games')
+		.order_by('play_date')[:30]
 	)
 
 	if not records:
@@ -34,6 +44,7 @@ def _financial_chart_data():
 			'returned': [],
 			'balance': [],
 			'cumulative_balance': [],
+			'contemplated': [],
 			'total_invested': 0,
 			'total_returned': 0,
 			'total_balance': 0,
@@ -41,6 +52,7 @@ def _financial_chart_data():
 			'profitable_bets_percent': 0,
 			'profitable_bets_count': 0,
 			'loss_bets_count': 0,
+			'contemplated_days_count': 0,
 		}
 
 	labels = [record.play_date.strftime('%d/%m') for record in records]
@@ -57,6 +69,8 @@ def _financial_chart_data():
 	total_balance = sum((record.balance for record in records), Decimal('0'))
 	profitable_records_count = sum(1 for record in records if record.balance > 0)
 	loss_records_count = sum(1 for record in records if record.balance < 0)
+	contemplated_series = [record.has_contemplated_game for record in records]
+	contemplated_days_count = sum(1 for flag in contemplated_series if flag)
 	records_count = len(records)
 	roi_percent = Decimal('0')
 	if total_invested > 0:
@@ -74,17 +88,24 @@ def _financial_chart_data():
 		'returned': returned_series,
 		'balance': balance_series,
 		'cumulative_balance': cumulative_balance_series,
+		'contemplated': contemplated_series,
 		'total_invested': total_invested,
 		'total_returned': total_returned,
 		'total_balance': total_balance,
 		'roi_percent': roi_percent,
 		'profitable_bets_percent': profitable_bets_percent,
 		'profitable_bets_count': profitable_records_count,
+		'contemplated_days_count': contemplated_days_count,
 		'loss_bets_count': loss_records_count,
 	}
 
 
 def home(request):
+	try:
+		check_pending_games(force=False)
+	except Exception:
+		logger.exception('Falha ao conferir apostas automaticamente.')
+
 	form = ExcelUploadForm()
 	chart_data = _financial_chart_data()
 	next_draw = fetch_next_lotofacil_draw()
@@ -120,6 +141,8 @@ def home(request):
 					'ai_used_draws': min(len(parse_result.draws), settings.LLM_MAX_DRAWS),
 					'ai_game_count': settings.LLM_GAME_COUNT,
 					'ai_error': ai_error,
+					'ai_target_concurso': next_draw.get('next_contest_number'),
+					'ai_bet_unit_price': settings.AI_BET_UNIT_PRICE,
 				}
 				return render(request, 'analyzer/results.html', context)
 			except ValueError as exc:
@@ -144,12 +167,18 @@ def home(request):
 			'home_profitable_bets_percent': chart_data['profitable_bets_percent'],
 			'home_profitable_bets_count': chart_data['profitable_bets_count'],
 			'home_loss_bets_count': chart_data['loss_bets_count'],
+			'home_contemplated_days_count': chart_data['contemplated_days_count'],
 		},
 	)
 
 
 def daily_results(request):
-	records = DailyBetResult.active_objects.active()
+	try:
+		check_pending_games(force=False)
+	except Exception:
+		logger.exception('Falha ao conferir apostas automaticamente.')
+
+	records = DailyBetResult.active_objects.active().prefetch_related('games')
 	aggregates = records.aggregate(
 		total_invested=Sum('invested_amount'),
 		total_returned=Sum('returned_amount'),
@@ -163,8 +192,11 @@ def daily_results(request):
 	if total_invested > 0:
 		roi_percent = round((balance / total_invested) * 100, 2)
 
+	paginator = Paginator(records, DAILY_RESULTS_PAGE_SIZE)
+	page_obj = paginator.get_page(request.GET.get('page'))
+
 	context = {
-		'records': records,
+		'page_obj': page_obj,
 		'total_invested': total_invested,
 		'total_returned': total_returned,
 		'balance': balance,
@@ -174,13 +206,44 @@ def daily_results(request):
 	return render(request, 'analyzer/daily_results.html', context)
 
 
+def conferir_apostas(request):
+	if request.method != 'POST':
+		return redirect('daily_results')
+
+	try:
+		result = check_pending_games(force=True)
+	except Exception:
+		logger.exception('Falha ao conferir apostas manualmente.')
+		messages.error(request, 'Não foi possível conferir as apostas agora. Tente novamente em instantes.')
+		return redirect('daily_results')
+
+	if result['checked_count'] == 0:
+		messages.success(request, 'Conferência concluída. Nenhum jogo pendente com resultado disponível.')
+	else:
+		messages.success(
+			request,
+			f"Conferência concluída: {result['checked_count']} jogo(s) conferido(s), "
+			f"{result['contemplated_count']} contemplado(s).",
+		)
+	return redirect('daily_results')
+
+
 def daily_result_create(request):
 	form = DailyBetResultForm()
 
 	if request.method == 'POST':
 		form = DailyBetResultForm(request.POST)
 		if form.is_valid():
-			form.save()
+			with transaction.atomic():
+				record = form.save()
+				for dezenas in form.cleaned_data['games']:
+					ConfirmedGame.objects.create(
+						daily_result=record,
+						dezenas=dezenas,
+						concurso=record.concurso,
+						amount=settings.AI_BET_UNIT_PRICE,
+						source=ConfirmedGame.SOURCE_MANUAL,
+					)
 			messages.success(request, 'Registro financeiro salvo com sucesso.')
 			return redirect('daily_results')
 
@@ -190,20 +253,68 @@ def daily_result_create(request):
 		'page_heading': 'Novo Registro Diário',
 		'page_subtitle': 'Salve o valor investido e o valor retornado do dia.',
 		'submit_label': 'Salvar registro',
+		'show_games_field': True,
 	}
 	return render(request, 'analyzer/daily_result_form.html', context)
 
 
 def daily_result_edit(request, record_id):
 	record = get_object_or_404(DailyBetResult.active_objects.active(), pk=record_id)
-	form = DailyBetResultForm(instance=record)
+	existing_games = list(record.games.all())
+	initial_games = '\n'.join(
+		','.join(str(number) for number in game.dezenas)
+		for game in existing_games
+	)
+	form_initial = {'games': initial_games}
+	form = DailyBetResultForm(instance=record, initial=form_initial)
 
 	if request.method == 'POST':
-		form = DailyBetResultForm(request.POST, instance=record)
+		form = DailyBetResultForm(request.POST, instance=record, initial=form_initial)
 		if form.is_valid():
-			form.save()
-			messages.success(request, 'Registro financeiro atualizado com sucesso.')
-			return redirect('daily_results')
+			submitted_games = form.cleaned_data['games']
+			current_games = [list(game.dezenas) for game in existing_games]
+			games_changed = submitted_games != current_games
+			if games_changed and not form.cleaned_data['confirm_games_change']:
+				form.add_error(
+					'confirm_games_change',
+					'Confirme a alteração dos jogos antes de salvar.',
+				)
+			else:
+				with transaction.atomic():
+					form.save()
+					for index, game in enumerate(existing_games):
+						if index < len(submitted_games):
+							new_numbers = submitted_games[index]
+							if list(game.dezenas) != new_numbers:
+								if game.prize_amount:
+									record.returned_amount -= game.prize_amount
+								game.dezenas = new_numbers
+								game.is_checked = False
+								game.is_contemplated = False
+								game.hits_count = None
+								game.matched_numbers = None
+								game.prize_amount = None
+								game.checked_at = None
+								game.save()
+						elif game.prize_amount:
+							record.returned_amount -= game.prize_amount
+							game.delete()
+						else:
+							game.delete()
+
+					for new_numbers in submitted_games[len(existing_games):]:
+						ConfirmedGame.objects.create(
+							daily_result=record,
+							dezenas=new_numbers,
+							concurso=record.concurso,
+							amount=settings.AI_BET_UNIT_PRICE,
+							source=ConfirmedGame.SOURCE_MANUAL,
+						)
+
+					if games_changed:
+						record.save(update_fields=['returned_amount', 'updated_at'])
+				messages.success(request, 'Registro financeiro atualizado com sucesso.')
+				return redirect('daily_results')
 
 	context = {
 		'form': form,
@@ -212,6 +323,8 @@ def daily_result_edit(request, record_id):
 		'page_heading': 'Editar Registro Diário',
 		'page_subtitle': 'Atualize os dados do registro selecionado.',
 		'submit_label': 'Salvar alterações',
+		'show_games_field': True,
+		'show_games_confirmation': True,
 	}
 	return render(request, 'analyzer/daily_result_form.html', context)
 
@@ -250,3 +363,64 @@ def upload_and_predict(request):
 		return JsonResponse({'error': str(e)}, status=500)
 
 	return JsonResponse(result)
+
+
+@require_POST
+def confirm_ai_games_view(request):
+	try:
+		payload = json.loads(request.body or '{}')
+	except json.JSONDecodeError:
+		return JsonResponse({'error': 'Invalid JSON payload.'}, status=400)
+
+	games = payload.get('games')
+	concurso = payload.get('concurso')
+
+	if not isinstance(games, list) or not games:
+		return JsonResponse({'error': 'At least one game is required.'}, status=400)
+
+	try:
+		created_games = confirm_ai_games(
+			play_date=timezone.localdate(),
+			games=games,
+			concurso=concurso,
+		)
+	except InvalidGameError as exc:
+		return JsonResponse({'error': str(exc)}, status=400)
+	except Exception:
+		logger.exception('Falha ao confirmar jogos da IA.')
+		return JsonResponse({'error': 'Erro inesperado ao confirmar os jogos.'}, status=500)
+
+	daily_result = created_games[0].daily_result
+	return JsonResponse(
+		{
+			'ok': True,
+			'game_ids': [game.id for game in created_games],
+			'invested_amount': float(daily_result.invested_amount),
+			'play_date': daily_result.play_date.isoformat(),
+		}
+	)
+
+
+def add_manual_game(request, record_id):
+	record = get_object_or_404(DailyBetResult.active_objects.active(), pk=record_id)
+	form = ManualGameForm(initial={'concurso': record.concurso})
+
+	if request.method == 'POST':
+		form = ManualGameForm(request.POST)
+		if form.is_valid():
+			game = form.save(commit=False)
+			game.daily_result = record
+			game.source = game.__class__.SOURCE_MANUAL
+			if game.is_contemplated:
+				game.is_checked = True
+			if game.is_checked and not game.checked_at:
+				game.checked_at = timezone.now()
+			game.save()
+			messages.success(request, 'Jogo adicionado com sucesso.')
+			return redirect('daily_results')
+
+	context = {
+		'form': form,
+		'record': record,
+	}
+	return render(request, 'analyzer/manual_game_form.html', context)

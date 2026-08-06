@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Adicionar Jogo</title>
+    <style>
+      :root {
+        --bg: #f4f6fb;
+        --card: #ffffff;
+        --text: #17203a;
+        --accent: #0b6e4f;
+        --danger: #b42318;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        color: var(--text);
+        background: radial-gradient(circle at 10% 20%, #dff3ff, var(--bg) 45%);
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+      }
+
+      .card {
+        width: min(720px, 100%);
+        background: var(--card);
+        border-radius: 16px;
+        padding: 28px;
+        box-shadow: 0 16px 48px rgba(25, 45, 88, 0.12);
+      }
+
+      .top-link {
+        color: #174d97;
+        text-decoration: none;
+        font-weight: 600;
+      }
+
+      h1 {
+        margin-top: 12px;
+        margin-bottom: 8px;
+        font-size: 1.8rem;
+      }
+
+      .sub {
+        margin-top: 0;
+        color: #4a5578;
+      }
+
+      form {
+        display: grid;
+        gap: 14px;
+      }
+
+      label {
+        display: block;
+        font-weight: 600;
+        margin-bottom: 6px;
+      }
+
+      input,
+      textarea {
+        width: 100%;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        padding: 10px 12px;
+        font: inherit;
+      }
+
+      .checkbox-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .checkbox-row input {
+        width: auto;
+      }
+
+      .errorlist {
+        color: var(--danger);
+        margin: 6px 0 0;
+        padding-left: 18px;
+      }
+
+      .helptext {
+        display: block;
+        margin-top: 6px;
+        color: #586482;
+        font-size: 0.9rem;
+      }
+
+      .row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 14px;
+      }
+
+      .actions {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+      }
+
+      .button {
+        border: none;
+        background: var(--accent);
+        color: #fff;
+        padding: 11px 18px;
+        border-radius: 10px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
+      .button-link {
+        color: #174d97;
+        text-decoration: none;
+        font-weight: 600;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="card">
+      <a class="top-link" href="/financeiro/">&larr; Voltar para financeiro</a>
+      <h1>Adicionar jogo</h1>
+      <p class="sub">
+        Registro de {{ record.play_date|date:'d/m/Y' }}{% if record.concurso %}
+        - concurso {{ record.concurso }}{% endif %}. Este jogo é só para
+        acompanhamento; não altera o Investido/Retornado do dia.
+      </p>
+
+      <form method="post">
+        {% csrf_token %} {{ form.non_field_errors }}
+
+        <div>
+          <label for="{{ form.dezenas.id_for_label }}"
+            >{{ form.dezenas.label }}</label
+          >
+          {{ form.dezenas }} {{ form.dezenas.errors }}
+        </div>
+
+        <div class="row">
+          <div>
+            <label for="{{ form.concurso.id_for_label }}"
+              >{{ form.concurso.label }}</label
+            >
+            {{ form.concurso }} {{ form.concurso.errors }}
+          </div>
+
+          <div>
+            <label for="{{ form.hits_count.id_for_label }}"
+              >{{ form.hits_count.label }}</label
+            >
+            {{ form.hits_count }} {{ form.hits_count.errors }}
+          </div>
+        </div>
+
+        <div>
+          <label for="{{ form.matched_numbers.id_for_label }}"
+            >{{ form.matched_numbers.label }}</label
+          >
+          {{ form.matched_numbers }} {{ form.matched_numbers.errors }}
+          <span class="helptext"
+            >Usado para destacar as dezenas acertadas na listagem.</span
+          >
+        </div>
+
+        <div class="row">
+          <div class="checkbox-row">
+            {{ form.is_checked }}
+            <label
+              for="{{ form.is_checked.id_for_label }}"
+              style="margin-bottom: 0"
+              >{{ form.is_checked.label }}</label
+            >
+          </div>
+
+          <div class="checkbox-row">
+            {{ form.is_contemplated }}
+            <label
+              for="{{ form.is_contemplated.id_for_label }}"
+              style="margin-bottom: 0"
+              >{{ form.is_contemplated.label }}</label
+            >
+          </div>
+        </div>
+
+        <div>
+          <label for="{{ form.prize_amount.id_for_label }}"
+            >{{ form.prize_amount.label }}</label
+          >
+          {{ form.prize_amount }} {{ form.prize_amount.errors }}
+        </div>
+
+        <div class="actions">
+          <button type="submit" class="button">Salvar jogo</button>
+          <a class="button-link" href="/financeiro/">Cancelar</a>
+        </div>
+      </form>
+    </main>
+  </body>
+</html>

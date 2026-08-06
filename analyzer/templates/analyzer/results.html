@@ -149,6 +149,55 @@
         margin: 2px 0;
         font-size: 0.92rem;
       }
+
+      .confirm-game-btn {
+        margin-top: 10px;
+        border: none;
+        background: var(--accent);
+        color: #fff;
+        padding: 9px 14px;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
+      .confirm-game-btn[disabled] {
+        opacity: 0.7;
+        cursor: default;
+      }
+
+      .confirm-status {
+        min-height: 1.2em;
+      }
+
+      .confirm-status.success {
+        color: var(--accent);
+        font-weight: 600;
+      }
+
+      .confirm-status.error {
+        color: #b42318;
+        font-weight: 600;
+      }
+
+      .confirm-all-row {
+        margin-top: 4px;
+        text-align: center;
+      }
+
+      .ai-game-card.confirmed {
+        border-color: var(--accent) !important;
+        background: #eafaf1;
+        position: relative;
+      }
+
+      .ai-game-card.confirmed::after {
+        content: "✔ Confirmado";
+        display: inline-block;
+        margin-top: 8px;
+        color: var(--accent);
+        font-weight: 700;
+      }
     </style>
   </head>
   <body>
@@ -178,13 +227,21 @@
         </p>
         {% if ai_notes %}
         <p class="meta">{{ ai_notes }}</p>
+        {% endif %} {% if ai_target_concurso %}
+        <p class="meta">
+          Confirmando, o jogo será salvo para o concurso {{ ai_target_concurso
+          }}.
+        </p>
         {% endif %}
 
         <div class="game-grid">
           {% for game in ai_games %}
           <article
-            class="card"
+            class="card ai-game-card"
             style="box-shadow: none; border: 1px solid var(--line)"
+            data-numbers="{{ game.numbers|join:',' }}"
+            data-score="{{ game.score }}"
+            data-rationale="{{ game.rationale }}"
           >
             <h3 class="game-title">Jogo IA {{ forloop.counter }}</h3>
             <div class="game-numbers">
@@ -196,6 +253,18 @@
             <p class="meta">{{ game.rationale }}</p>
           </article>
           {% endfor %}
+        </div>
+
+        <div class="confirm-all-row">
+          <button type="button" id="confirm-all-btn" class="confirm-game-btn">
+            Confirmar {{ ai_games|length }} jogos (R$ {{
+            ai_bet_unit_price|floatformat:2 }} cada)
+          </button>
+          <p
+            class="meta confirm-status"
+            id="confirm-all-status"
+            role="status"
+          ></p>
         </div>
       </section>
       {% elif ai_error %}
@@ -397,5 +466,74 @@
         </table>
       </section>
     </div>
+
+    {% csrf_token %}
+
+    <script>
+      (function () {
+        const csrfInput = document.querySelector('input[name="csrfmiddlewaretoken"]');
+        const csrfToken = csrfInput ? csrfInput.value : '';
+        const targetConcurso = {{ ai_target_concurso|default:"null" }};
+        const confirmAllBtn = document.getElementById('confirm-all-btn');
+        const statusEl = document.getElementById('confirm-all-status');
+
+        if (!confirmAllBtn) {
+          return;
+        }
+
+        confirmAllBtn.addEventListener('click', function () {
+          const cards = Array.prototype.slice.call(document.querySelectorAll('.ai-game-card'));
+          const games = cards.map(function (card) {
+            const score = parseFloat(card.dataset.score);
+            return {
+              numbers: card.dataset.numbers.split(',').map(Number),
+              score: isNaN(score) ? null : score,
+              rationale: card.dataset.rationale || '',
+            };
+          });
+
+          confirmAllBtn.disabled = true;
+          confirmAllBtn.textContent = 'Confirmando...';
+          statusEl.textContent = '';
+          statusEl.classList.remove('success', 'error');
+
+          fetch('/financeiro/confirmar-jogos/', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRFToken': csrfToken,
+            },
+            body: JSON.stringify({
+              games: games,
+              concurso: targetConcurso,
+            }),
+          })
+            .then(function (response) {
+              return response.json().then(function (data) {
+                return { ok: response.ok, data: data };
+              });
+            })
+            .then(function (result) {
+              if (!result.ok) {
+                throw new Error(result.data.error || 'Erro ao confirmar os jogos.');
+              }
+              confirmAllBtn.textContent = 'Todos os jogos confirmados ✔';
+              cards.forEach(function (card) {
+                card.classList.add('confirmed');
+              });
+              statusEl.textContent =
+                'Apostas salvas no controle financeiro. Investido: R$ ' +
+                result.data.invested_amount.toFixed(2).replace('.', ',');
+              statusEl.classList.add('success');
+            })
+            .catch(function (error) {
+              confirmAllBtn.disabled = false;
+              confirmAllBtn.textContent = 'Confirmar ' + games.length + ' jogos';
+              statusEl.textContent = error.message;
+              statusEl.classList.add('error');
+            });
+        });
+      })();
+    </script>
   </body>
 </html>

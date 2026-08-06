@@ -1,5 +1,6 @@
 from io import BytesIO
 from decimal import Decimal
+import json
 from unittest.mock import patch
 
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -9,7 +10,7 @@ from openpyxl import Workbook
 from datetime import date
 
 from analyzer.forms import DailyBetResultForm
-from analyzer.models import DailyBetResult
+from analyzer.models import ConfirmedGame, DailyBetResult
 
 
 def _excel_payload():
@@ -337,3 +338,111 @@ class FinancialViewsTests(TestCase):
         self.assertFalse(record.is_active)
         self.assertIsNotNone(record.deactivated_at)
         self.assertEqual(DailyBetResult.objects.count(), 1)
+
+
+class ConfirmAiGameViewTests(TestCase):
+    def test_confirms_valid_game_and_persists_record(self):
+        response = self.client.post(
+            '/financeiro/confirmar-jogo/',
+            data=json.dumps(
+                {
+                    'numbers': list(range(1, 16)),
+                    'concurso': 3752,
+                    'score': 0.88,
+                    'rationale': 'Jogo de teste.',
+                }
+            ),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertTrue(payload['ok'])
+        self.assertEqual(payload['invested_amount'], 3.5)
+
+        daily_result = DailyBetResult.objects.first()
+        self.assertEqual(daily_result.invested_amount, Decimal('3.50'))
+        self.assertEqual(ConfirmedGame.objects.count(), 1)
+
+    def test_rejects_invalid_numbers(self):
+        response = self.client.post(
+            '/financeiro/confirmar-jogo/',
+            data=json.dumps({'numbers': [1, 2, 3], 'concurso': 3752}),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('error', response.json())
+        self.assertEqual(DailyBetResult.objects.count(), 0)
+
+    def test_rejects_get_method(self):
+        response = self.client.get('/financeiro/confirmar-jogo/')
+        self.assertEqual(response.status_code, 405)
+
+
+class ConferirApostasViewTests(TestCase):
+    @patch('analyzer.views.check_pending_games')
+    def test_manual_check_triggers_service_with_force_true(self, mock_check):
+        mock_check.return_value = {'ran': True, 'checked_count': 2, 'contemplated_count': 1}
+
+        response = self.client.post('/financeiro/conferir/')
+
+        mock_check.assert_called_once_with(force=True)
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, '/financeiro/')
+
+    def test_rejects_get_method(self):
+        response = self.client.get('/financeiro/conferir/')
+        self.assertEqual(response.status_code, 302)
+
+
+class DailyResultsGamesRenderingTests(TestCase):
+    @patch('analyzer.views.check_pending_games')
+    def test_shows_confirmed_game_with_hit_numbers(self, mock_check):
+        mock_check.return_value = {'ran': False, 'checked_count': 0, 'contemplated_count': 0}
+
+        daily_result = DailyBetResult.objects.create(
+            play_date='2026-08-05',
+            concurso=3752,
+            invested_amount=Decimal('3.50'),
+            returned_amount=Decimal('500000.00'),
+        )
+        ConfirmedGame.objects.create(
+            daily_result=daily_result,
+            dezenas=list(range(1, 16)),
+            concurso=3752,
+            amount=Decimal('3.50'),
+            is_checked=True,
+            is_contemplated=True,
+            hits_count=15,
+            matched_numbers=list(range(1, 16)),
+            prize_amount=Decimal('500000.00'),
+        )
+
+        response = self.client.get('/financeiro/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Contemplado')
+        self.assertContains(response, 'chip hit')
+
+    @patch('analyzer.views.check_pending_games')
+    def test_shows_pending_game_awaiting_draw(self, mock_check):
+        mock_check.return_value = {'ran': False, 'checked_count': 0, 'contemplated_count': 0}
+
+        daily_result = DailyBetResult.objects.create(
+            play_date='2026-08-05',
+            concurso=3752,
+            invested_amount=Decimal('3.50'),
+            returned_amount=Decimal('0'),
+        )
+        ConfirmedGame.objects.create(
+            daily_result=daily_result,
+            dezenas=list(range(1, 16)),
+            concurso=3752,
+            amount=Decimal('3.50'),
+        )
+
+        response = self.client.get('/financeiro/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Aguardando sorteio')

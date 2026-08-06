@@ -1,6 +1,7 @@
 """Django settings for lotofacil_project project."""
 
 import os
+from decimal import Decimal
 from pathlib import Path
 
 import dj_database_url
@@ -151,3 +152,7 @@ OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 OPENAI_MODEL = os.getenv('OPENAI_MODEL', 'gpt-5.4-nano')
 LLM_MAX_DRAWS = int(os.getenv('LLM_MAX_DRAWS', '500'))
 LLM_GAME_COUNT = int(os.getenv('LLM_GAME_COUNT', '3'))
+
+# Valor unitario da aposta da Lotofacil, usado para calcular o valor investido
+# quando um jogo gerado pela IA e confirmado.
+AI_BET_UNIT_PRICE = Decimal(os.getenv('AI_BET_UNIT_PRICE', '3.50'))

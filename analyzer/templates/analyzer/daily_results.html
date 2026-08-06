@@ -164,6 +164,81 @@
         margin: 8px 0;
       }
 
+      .games-cell {
+        min-width: 260px;
+      }
+
+      .game-entry {
+        margin-bottom: 10px;
+        padding-bottom: 10px;
+        border-bottom: 1px dashed var(--line);
+      }
+
+      .game-entry:last-child {
+        margin-bottom: 0;
+        padding-bottom: 0;
+        border-bottom: none;
+      }
+
+      .game-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 6px;
+      }
+
+      .game-index {
+        font-weight: 600;
+        font-size: 0.85rem;
+        color: #294368;
+      }
+
+      .game-badge {
+        font-size: 0.78rem;
+        font-weight: 600;
+        padding: 3px 8px;
+        border-radius: 999px;
+        white-space: nowrap;
+      }
+
+      .game-badge.pending {
+        background: #eef2fb;
+        color: #536589;
+      }
+
+      .game-badge.success {
+        background: #dcfce7;
+        color: #14532d;
+      }
+
+      .game-badge.neutral {
+        background: #fdecea;
+        color: #8a3b34;
+      }
+
+      .game-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+      }
+
+      .chip {
+        min-width: 26px;
+        text-align: center;
+        font-size: 0.78rem;
+        font-weight: 700;
+        padding: 3px 6px;
+        border-radius: 999px;
+        background: #e3eefc;
+        color: #123c72;
+      }
+
+      .chip.hit {
+        background: #0f7b53;
+        color: #fff;
+      }
+
       .loading-overlay {
         position: fixed;
         inset: 0;
@@ -235,6 +310,33 @@
           grid-template-columns: 1fr;
         }
       }
+
+      .add-game-link {
+        display: inline-block;
+        margin-top: 6px;
+        color: #174d97;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 0.85rem;
+      }
+
+      .pagination {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 14px;
+        margin-top: 16px;
+      }
+
+      .pagination .button[aria-disabled="true"] {
+        opacity: 0.5;
+        pointer-events: none;
+      }
+
+      .pagination-info {
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
     </style>
   </head>
   <body>
@@ -286,12 +388,30 @@
       <section class="card">
         <div class="actions">
           <h2 style="margin: 0">Historico diario</h2>
-          <a class="button" href="/financeiro/novo/" data-db-navigation="true"
-            >Novo registro</a
-          >
+          <div style="display: flex; gap: 10px; flex-wrap: wrap">
+            <form method="post" action="/financeiro/conferir/">
+              {% csrf_token %}
+              <button
+                type="submit"
+                class="button secondary"
+                style="
+                  white-space: nowrap;
+                  height: 40px;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                "
+              >
+                Conferir novamente
+              </button>
+            </form>
+            <a class="button" href="/financeiro/novo/" data-db-navigation="true"
+              >Novo registro</a
+            >
+          </div>
         </div>
 
-        {% if records %}
+        {% if page_obj %}
         <div class="table-responsive">
           <table>
             <thead>
@@ -301,18 +421,52 @@
                 <th>Investido</th>
                 <th>Retornado</th>
                 <th>Saldo</th>
+                <th>Jogos</th>
                 <th>Observação</th>
                 <th>Ações</th>
               </tr>
             </thead>
             <tbody>
-              {% for record in records %}
+              {% for record in page_obj %}
               <tr>
                 <td>{{ record.play_date|date:'d/m/Y' }}</td>
                 <td>{{ record.concurso|default:'-' }}</td>
                 <td>R$ {{ record.invested_amount|floatformat:2 }}</td>
                 <td>R$ {{ record.returned_amount|floatformat:2 }}</td>
                 <td>R$ {{ record.balance|floatformat:2 }}</td>
+                <td class="games-cell">
+                  {% if record.games.all %} {% for game in record.games.all %}
+                  <div class="game-entry">
+                    <div class="game-header">
+                      <span class="game-index">Jogo {{ forloop.counter }}</span>
+                      <span
+                        class="game-badge {% if not game.is_checked %}pending{% elif game.is_contemplated %}success{% else %}neutral{% endif %}"
+                      >
+                        {% if not game.is_checked %} Aguardando sorteio {% elif
+                        game.is_contemplated %} 🏆 Contemplado ({{
+                        game.hits_count }} acertos) {% else %} Não contemplado
+                        ({{ game.hits_count }} acertos) {% endif %}
+                      </span>
+                    </div>
+                    <div class="game-chips">
+                      {% for number in game.dezenas %}
+                      <span
+                        class="chip {% if game.is_checked and number in game.matched_numbers %}hit{% endif %}"
+                        >{{ number|stringformat:"02d" }}</span
+                      >
+                      {% endfor %}
+                    </div>
+                  </div>
+                  {% endfor %} {% else %}
+                  <span class="empty">-</span>
+                  {% endif %}
+                  <a
+                    class="add-game-link"
+                    href="/financeiro/{{ record.id }}/jogos/novo/"
+                    data-db-navigation="true"
+                    >+ Adicionar jogo</a
+                  >
+                </td>
                 <td>{{ record.notes|default:'-' }}</td>
                 <td>
                   <div class="row-actions">
@@ -335,7 +489,39 @@
             </tbody>
           </table>
         </div>
-        {% else %}
+
+        {% if page_obj.paginator.num_pages > 1 %}
+        <div class="pagination">
+          {% if page_obj.has_previous %}
+          <a
+            class="button secondary"
+            href="?page={{ page_obj.previous_page_number }}"
+            data-db-navigation="true"
+            >&larr; Anterior</a
+          >
+          {% else %}
+          <span class="button secondary" aria-disabled="true"
+            >&larr; Anterior</span
+          >
+          {% endif %}
+          <span class="pagination-info"
+            >Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages
+            }}</span
+          >
+          {% if page_obj.has_next %}
+          <a
+            class="button secondary"
+            href="?page={{ page_obj.next_page_number }}"
+            data-db-navigation="true"
+            >Próxima &rarr;</a
+          >
+          {% else %}
+          <span class="button secondary" aria-disabled="true"
+            >Próxima &rarr;</span
+          >
+          {% endif %}
+        </div>
+        {% endif %} {% else %}
         <p class="empty">Nenhum registro cadastrado ainda.</p>
         {% endif %}
       </section>
