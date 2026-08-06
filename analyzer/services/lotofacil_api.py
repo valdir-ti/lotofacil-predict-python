@@ -106,3 +106,91 @@ def fetch_next_lotofacil_draw(timeout=4):
             continue
 
     return _build_unavailable_response()
+
+
+# Lotofacil pays prizes for contestants who hit 11 to 15 numbers. The official
+# API returns a "faixa" (tier) per prize bracket, ordered from the highest hit
+# count (faixa 1 = 15 hits) down to the lowest (faixa 5 = 11 hits). This
+# mapping should be double-checked against a live API response, since Caixa
+# may adjust the payload shape without notice.
+_PRIZE_TIER_TO_HITS = {1: 15, 2: 14, 3: 13, 4: 12, 5: 11}
+
+
+def _parse_drawn_numbers(payload):
+    raw_numbers = (
+        payload.get('dezenasSorteadasOrdemSorteio')
+        or payload.get('listaDezenas')
+        or payload.get('dezenas')
+    )
+    if not raw_numbers:
+        return None
+
+    numbers = set()
+    for value in raw_numbers:
+        try:
+            numbers.add(int(value))
+        except (TypeError, ValueError):
+            continue
+
+    return numbers if len(numbers) == 15 else None
+
+
+def _parse_prize_by_hits(payload):
+    raw_tiers = payload.get('listaRateioPremio') or payload.get('premiacoes') or []
+    prize_by_hits = {}
+
+    for tier in raw_tiers:
+        if not isinstance(tier, dict):
+            continue
+
+        faixa = tier.get('faixa')
+        hits = _PRIZE_TIER_TO_HITS.get(faixa)
+        if hits is None:
+            continue
+
+        prize_value = tier.get('valorPremio')
+        winners = tier.get('numeroDeGanhadores', tier.get('ganhadores'))
+        try:
+            winners_count = int(winners) if winners is not None else None
+        except (TypeError, ValueError):
+            winners_count = None
+
+        # A prize tier with zero winners has no real payout to consider.
+        if winners_count == 0:
+            continue
+
+        try:
+            prize_by_hits[hits] = Decimal(str(prize_value))
+        except (InvalidOperation, TypeError):
+            continue
+
+    return prize_by_hits
+
+
+def _build_result_unavailable_response():
+    return {'has_data': False, 'drawn_numbers': None, 'prize_by_hits': {}}
+
+
+def fetch_lotofacil_result(concurso, timeout=4):
+    """Fetch the official result for an already-drawn Lotofacil contest.
+
+    Returns {'has_data': bool, 'drawn_numbers': set[int] | None, 'prize_by_hits': dict[int, Decimal]}.
+    """
+    for base_url in (LOTOFACIL_API_URL, LOTOFACIL_API_FALLBACK_URL.rsplit('/latest', 1)[0]):
+        api_url = f'{base_url}/{concurso}'
+        try:
+            payload = _fetch_payload(api_url, timeout=timeout)
+        except (URLError, TimeoutError, UnicodeDecodeError, json.JSONDecodeError, ValueError):
+            continue
+
+        drawn_numbers = _parse_drawn_numbers(payload)
+        if not drawn_numbers:
+            continue
+
+        return {
+            'has_data': True,
+            'drawn_numbers': drawn_numbers,
+            'prize_by_hits': _parse_prize_by_hits(payload),
+        }
+
+    return _build_result_unavailable_response()
