@@ -267,6 +267,23 @@ class FinancialViewsTests(TestCase):
         self.assertContains(response, 'Quantidade de registros')
         self.assertContains(response, '2')
 
+    def test_financial_list_pagination_renders_page_values(self):
+        for index in range(11):
+            DailyBetResult.objects.create(
+                play_date=date(2026, 7, 1 + index),
+                concurso=3500 + index,
+                invested_amount=Decimal('10.00'),
+                returned_amount=Decimal('0.00'),
+            )
+
+        first_page = self.client.get('/financeiro/?page=1')
+        second_page = self.client.get('/financeiro/?page=2')
+
+        self.assertContains(first_page, 'Página 1 de 2')
+        self.assertContains(second_page, 'Página 2 de 2')
+        self.assertNotContains(first_page, '{{ page_obj.paginator.num_pages')
+        self.assertNotContains(second_page, '{{ page_obj.paginator.num_pages')
+
     def test_financial_edit_updates_record(self):
         record = DailyBetResult.objects.create(
             play_date='2026-07-24',
