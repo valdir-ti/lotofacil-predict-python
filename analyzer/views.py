@@ -373,6 +373,14 @@ def confirm_ai_games_view(request):
 		return JsonResponse({'error': 'Invalid JSON payload.'}, status=400)
 
 	games = payload.get('games')
+	if games is None and 'numbers' in payload:
+		games = [
+			{
+				'numbers': payload.get('numbers'),
+				'score': payload.get('score'),
+				'rationale': payload.get('rationale'),
+			}
+		]
 	concurso = payload.get('concurso')
 
 	if not isinstance(games, list) or not games:

@@ -10,6 +10,12 @@ except Exception:
 from django.conf import settings
 
 from .excel_parser import parse_lotofacil_excel, DrawRecord
+from .features import calculate_number_features, validate_game
+from .metrics import (
+    _pick_diverse_candidates,
+    calculate_game_score,
+    generate_recommended_games,
+)
 
 
 def _response_schema(game_count: int, max_draws: int) -> Dict[str, Any]:
@@ -31,6 +37,8 @@ def _response_schema(game_count: int, max_draws: int) -> Dict[str, Any]:
             'raw_arrays': {'type': 'object', 'additionalProperties': False, 'properties': {}},
             'recommended_games': {
                 'type': 'array',
+                'minItems': game_count,
+                'maxItems': game_count,
                 'items': {
                     'type': 'object',
                     'additionalProperties': False,
@@ -38,6 +46,8 @@ def _response_schema(game_count: int, max_draws: int) -> Dict[str, Any]:
                     'properties': {
                         'numbers': {
                             'type': 'array',
+                            'minItems': 15,
+                            'maxItems': 15,
                             'items': {'type': 'integer'},
                         },
                         'score': {'type': 'number'},
@@ -54,9 +64,14 @@ def _build_prompt(game_count: int, max_draws: int) -> str:
         f"Faça uma análise dos últimos {max_draws} concursos válidos da Lotofácil enviados "
         "nos objetos JSON draws e raw_arrays. draws contém as 15 dezenas de cada concurso, "
         "em ordem cronológica; raw_arrays contém métricas calculadas no servidor.\n\n"
-        "Analise repetições, sequências, grupos de dezenas, padrões de linhas e colunas, "
-        "padrões raros, tendências, somas e equilíbrio entre pares e ímpares. Use essa análise "
-        f"para montar {game_count} jogos equilibrados.\n\n"
+        "Analise frequência histórica, recência, atraso, repetição, sequências, grupos, linhas, "
+        "colunas, soma, paridade, moldura, padrões raros e tendências estruturais. Use as métricas "
+        "calculadas pelo servidor e não invente nem recalcule desnecessariamente métricas já fornecidas. "
+        f"Atue como camada de análise e seleção para montar {game_count} jogos equilibrados candidatos.\n\n"
+        "Priorize o pool das 20 dezenas com maior number_score, aproximadamente 10 dezenas de moldura "
+        "e aproximadamente 9 dezenas repetidas do último concurso. Busque diversidade entre os jogos. "
+        "Essas são preferências heurísticas, não evidências de aumento da probabilidade matemática. "
+        "As regras determinísticas e o score final serão recalculados e validados pelo Python.\n\n"
         "Retorne somente um objeto JSON que siga exatamente o schema informado. O objeto deve "
         "conter meta, stats, raw_arrays e recommended_games. stats e raw_arrays devem ser objetos "
         "vazios. meta deve conter used_draws e notes. Cada item de recommended_games deve conter "
@@ -127,6 +142,71 @@ def _compute_local_arrays(draws: List[DrawRecord]) -> Dict[str, Any]:
     }
 
 
+def _fallback_game_entry(game: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        'numbers': sorted(game['numbers']),
+        'score': float(game['score']),
+        'rationale': 'Candidato gerado e validado deterministicamente pelo Python.',
+    }
+
+
+def _finalize_games(
+    model_games: Any,
+    draws: List[DrawRecord],
+    game_count: int,
+) -> List[Dict[str, Any]]:
+    """Filter LLM candidates, recalculate scores and fill from the local generator."""
+    number_features = calculate_number_features(draws)
+    last_draw = set(draws[-1].dezenas)
+    candidate_pool: List[Dict[str, Any]] = []
+    seen: set[tuple[int, ...]] = set()
+
+    if isinstance(model_games, list):
+        for entry in model_games:
+            if not isinstance(entry, dict) or not _validate_game_entry(entry):
+                continue
+            numbers = sorted(entry['numbers'])
+            valid, _reason = validate_game(numbers, last_draw)
+            key = tuple(numbers)
+            if not valid or key in seen:
+                continue
+            score = calculate_game_score(
+                numbers,
+                draws,
+                number_features,
+            )
+            candidate_pool.append({
+                'numbers': numbers,
+                'score': score,
+                'intrinsic_score': score,
+                'rationale': entry['rationale'],
+            })
+            seen.add(key)
+
+    for local_game in generate_recommended_games(draws, target_count=game_count):
+        key = tuple(local_game['numbers'])
+        if key in seen:
+            continue
+        candidate_pool.append(_fallback_game_entry(local_game) | {
+            'intrinsic_score': float(local_game['score']),
+        })
+        seen.add(key)
+
+    selected = _pick_diverse_candidates(candidate_pool, game_count)
+    finalized = [
+        {
+            'numbers': game['numbers'],
+            'score': game['intrinsic_score'],
+            'rationale': game['rationale'],
+        }
+        for game in selected
+    ]
+
+    if len(finalized) != game_count:
+        raise ValueError('Nao foi possivel montar a quantidade configurada de jogos validos.')
+    return finalized
+
+
 def generate_games_from_excel_file(
     uploaded_file,
     model: str | None = None,
@@ -149,6 +229,7 @@ def generate_games_from_excel_file(
     draws_json = _draws_to_serializable(draws)
 
     raw_arrays = _compute_local_arrays(draws)
+    number_features = calculate_number_features(draws)
 
     payload = {
         'draws': draws_json,
@@ -158,6 +239,8 @@ def generate_games_from_excel_file(
             'sums_per_draw': raw_arrays['sums_per_draw'],
             'lines': raw_arrays['lines'],
             'columns': raw_arrays['columns'],
+            'even_distribution': raw_arrays['even_distribution'],
+            'number_features': number_features,
         },
     }
 
@@ -197,24 +280,26 @@ def generate_games_from_excel_file(
     except Exception as exc:
         raise ValueError(f'Failed to parse model response as JSON: {exc}\nRaw response: {text}')
 
-    # Validate recommended_games
-    games = result.get('recommended_games') if isinstance(result, dict) else None
-    if games is None or not isinstance(games, list) or len(games) != game_count:
+    if not isinstance(result, dict) or 'recommended_games' not in result:
         returned_keys = sorted(result.keys()) if isinstance(result, dict) else []
-        games_type = type(games).__name__
-        games_count = len(games) if isinstance(games, list) else None
         raise ValueError(
             'Model response does not match the required recommended_games schema. '
-            f'Returned top-level keys: {returned_keys}; '
-            f'recommended_games type: {games_type}; count: {games_count}.'
+            f'Returned top-level keys: {returned_keys}; recommended_games type: None; count: None.'
         )
 
-    validated_games: List[Dict[str, Any]] = []
-    for entry in games:
-        if not isinstance(entry, dict) or not _validate_game_entry(entry):
-            raise ValueError(f'Invalid game format from model: {entry}')
-        entry['numbers'] = sorted(entry['numbers'])
-        validated_games.append(entry)
+    games = result.get('recommended_games')
+    finalized_games = _finalize_games(games, draws, game_count)
+    if not isinstance(result, dict):
+        result = {}
+    result['meta'] = {
+        'used_draws': len(draws),
+        'notes': result.get('meta', {}).get('notes', '')
+        if isinstance(result.get('meta'), dict)
+        else '',
+    }
+    result['stats'] = {}
+    result['raw_arrays'] = {}
+    result['recommended_games'] = finalized_games
 
     return {
         'model_result': result,
