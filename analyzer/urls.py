@@ -22,5 +22,7 @@ urlpatterns = [
     path('financeiro/<int:record_id>/jogos/novo/', add_manual_game, name='add_manual_game'),
     path('financeiro/conferir/', conferir_apostas, name='conferir_apostas'),
     path('financeiro/confirmar-jogos/', confirm_ai_games_view, name='confirm_ai_games'),
+    # Backward-compatible singular endpoint used by older clients.
+    path('financeiro/confirmar-jogo/', confirm_ai_games_view, name='confirm_ai_game'),
     path('predict/upload/', upload_and_predict, name='predict_upload'),
 ]

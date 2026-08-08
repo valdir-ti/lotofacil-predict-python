@@ -23,14 +23,27 @@ def _excel_file(draw_count=1):
     return output
 
 
-def _model_response(game_count=3):
+def _model_response(game_count=3, last_draw=None):
+    last_draw = last_draw or set(range(1, 16))
+    if last_draw == set(range(1, 16)):
+        valid_games = [
+            [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 16, 17, 18, 19],
+            [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 16, 17, 20, 21],
+            [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 16, 17, 22, 23],
+        ]
+    else:
+        valid_games = [
+            [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 15, 16, 18, 19],
+            [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 15, 18, 20, 21],
+            [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 15, 18, 22, 23],
+        ]
     games = [
         {
-            'numbers': list(range(start, start + 15)),
+            'numbers': valid_games[index],
             'score': 0.8,
             'rationale': 'Valid test game.',
         }
-        for start in range(1, game_count + 1)
+        for index in range(game_count)
     ]
     return json.dumps(
         {
@@ -58,7 +71,10 @@ class PredictionProviderTests(SimpleTestCase):
         result = generate_games_from_excel_file(_excel_file())
 
         self.assertEqual(len(result['model_result']['recommended_games']), 3)
-        self.assertEqual(result['model_result']['recommended_games'][0]['numbers'], list(range(1, 16)))
+        self.assertEqual(
+            result['model_result']['recommended_games'][0]['numbers'],
+            [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 16, 17, 18, 19],
+        )
         self.assertNotIn('graphs', result)
         mock_openai.assert_called_once_with(api_key='test-key')
         request = mock_openai.return_value.responses.create.call_args.kwargs
@@ -66,6 +82,8 @@ class PredictionProviderTests(SimpleTestCase):
         prompt = request['input']
         instructions, _payload = prompt.rsplit('\n\n{', 1)
         self.assertIn('montar 3 jogos equilibrados', prompt)
+        self.assertIn('frequência histórica, recência, atraso', prompt)
+        self.assertIn('As regras determinísticas e o score final serão recalculados', prompt)
         self.assertIn('português brasileiro', prompt)
         self.assertNotIn('[1, 2, 3, 4, 5', instructions)
         schema = request['text']['format']['schema']
@@ -76,7 +94,7 @@ class PredictionProviderTests(SimpleTestCase):
     @patch('analyzer.services.chatgpt_client.OpenAI')
     def test_sends_only_the_configured_most_recent_draws(self, mock_openai):
         mock_openai.return_value.responses.create.return_value = Mock(
-            output_text=_model_response()
+            output_text=_model_response(last_draw=set(range(1, 15)) | {17})
         )
 
         generate_games_from_excel_file(_excel_file(draw_count=3))

@@ -93,9 +93,9 @@ class HomeViewTests(TestCase):
         self.assertContains(response, 'class="negative"')
         self.assertContains(response, 'Saldo acumulado:')
         self.assertContains(response, 'ROI total:')
-        self.assertContains(response, '% de apostas lucrativas:')
-        self.assertContains(response, 'Apostas lucrativas:')
-        self.assertContains(response, 'Apostas com prejuízo:')
+        self.assertContains(response, '% de dias lucrativos:')
+        self.assertContains(response, 'Dias lucrativos:')
+        self.assertContains(response, 'Dias com prejuízo:')
         self.assertContains(response, '-20,00%')
         self.assertContains(response, '50,00%')
         self.assertContains(response, '>1<')
@@ -133,6 +133,8 @@ class HomeViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Dashboard de Resultados')
         self.assertContains(response, 'Todos os indicadores abaixo usam 100% dos concursos válidos')
+        self.assertNotContains(response, '{{ ai_bet_unit_price')
+        self.assertNotContains(response, '{{ ai_target_concurso')
         self.assertContains(response, '3 jogos recomendados pela IA')
         self.assertContains(response, '3 jogos recomendados pela análise local')
         self.assertContains(response, 'Jogo de teste da IA.')
@@ -181,7 +183,7 @@ class FinancialViewsTests(TestCase):
         response = self.client.get('/financeiro/novo/')
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Novo Registro Diario')
+        self.assertContains(response, 'Novo Registro Diário')
 
     def test_financial_form_uses_html_date_input(self):
         form = DailyBetResultForm()
@@ -238,7 +240,7 @@ class FinancialViewsTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Ja existe um registro para esta data.')
+        self.assertContains(response, 'Já existe um registro para esta data.')
         self.assertEqual(DailyBetResult.objects.count(), 1)
 
     def test_financial_list_shows_aggregated_values(self):
@@ -320,7 +322,7 @@ class FinancialViewsTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Ja existe um registro para esta data.')
+        self.assertContains(response, 'Já existe um registro para esta data.')
 
     def test_financial_delete_deactivates_record(self):
         record = DailyBetResult.objects.create(
@@ -424,6 +426,8 @@ class DailyResultsGamesRenderingTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Contemplado')
         self.assertContains(response, 'chip hit')
+        self.assertNotContains(response, '{% elif')
+        self.assertNotContains(response, '{{ game.hits_count }}')
 
     @patch('analyzer.views.check_pending_games')
     def test_shows_pending_game_awaiting_draw(self, mock_check):
@@ -446,3 +450,4 @@ class DailyResultsGamesRenderingTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Aguardando sorteio')
+        self.assertNotContains(response, '{% elif')

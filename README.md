@@ -51,6 +51,19 @@ Com base nos concursos validos, calcula:
 
 Implementacao principal em [analyzer/services/metrics.py](analyzer/services/metrics.py).
 
+### 2.1) Backtesting das heuristicas
+
+O projeto possui um backtesting walk-forward que usa somente concursos anteriores ao concurso
+testado e compara o gerador heuristico com dois baselines aleatorios:
+
+```bash
+python manage.py backtest_lotofacil caminho/para/lotofacil.xlsx --min-history 100 --game-count 3
+```
+
+O resultado JSON informa media, mediana, maximo e contagens de jogos com 11, 12, 13, 14 e 15
+acertos para cada estrategia. As heuristicas sao rankings/composicoes estatisticas e nao alteram
+a probabilidade matematica de uma dezena.
+
 ### 3) Controle financeiro diario
 
 CRUD de registros financeiros com soft delete:
