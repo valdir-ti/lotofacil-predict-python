@@ -223,6 +223,21 @@
           <label for="{{ form.games.id_for_label }}">{{ form.games.label }}</label>
           {{ form.games }} {{ form.games.errors }}
           <span class="helptext">{{ form.games.help_text }}</span>
+          {% if record %}
+          <div style="margin-top: 14px">
+            <strong>Prêmios dos jogos contemplados</strong>
+            {% for game in existing_games %}
+            {% if game.is_contemplated %}
+            <div class="row" style="margin-top: 8px">
+              <div>
+                <label>Jogo {{ forloop.counter }} — concurso {{ game.concurso|default:record.concurso }}</label>
+                {{ game.received_form_field }} {{ game.received_form_field.errors }}
+              </div>
+            </div>
+            {% endif %}
+            {% endfor %}
+          </div>
+          {% endif %}
           {% if show_games_confirmation %}
           <div class="warning-box">
             Alterar, incluir ou remover jogos pode invalidar acertos e prêmios já

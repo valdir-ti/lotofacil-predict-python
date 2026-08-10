@@ -68,6 +68,18 @@ class DailyBetResultForm(forms.ModelForm):
         }
         help_texts = {'notes': 'Opcional.'}
 
+    def add_game_received_fields(self, games):
+        for game in games:
+            field_name = f'game_{game.pk}_prize_received'
+            self.fields[field_name] = forms.TypedChoiceField(
+                label='Recebido',
+                choices=[('0', 'Não'), ('1', 'Sim')],
+                required=False,
+                coerce=lambda value: value == '1' or value is True,
+                initial='1' if game.prize_received else '0',
+            )
+            game.received_form_field = self[field_name]
+
     def clean_play_date(self):
         play_date = self.cleaned_data['play_date']
         queryset = DailyBetResult.active_objects.active().filter(play_date=play_date)
@@ -117,6 +129,7 @@ class ManualGameForm(forms.ModelForm):
             'hits_count',
             'matched_numbers',
             'prize_amount',
+            'prize_received',
         ]
         labels = {
             'concurso': 'Concurso (opcional)',
@@ -124,10 +137,12 @@ class ManualGameForm(forms.ModelForm):
             'is_contemplated': 'Contemplado (teve prêmio)',
             'hits_count': 'Quantidade de acertos (opcional)',
             'prize_amount': 'Valor do prêmio (opcional, R$)',
+            'prize_received': 'Recebido',
         }
         widgets = {
             'hits_count': forms.NumberInput(attrs={'min': 0, 'max': 15}),
             'prize_amount': forms.NumberInput(attrs={'step': '0.01', 'min': '0'}),
+            'prize_received': forms.Select(choices=[(False, 'Não'), (True, 'Sim')]),
         }
 
     def clean_dezenas(self):

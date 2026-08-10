@@ -198,6 +198,13 @@
           {{ form.prize_amount }} {{ form.prize_amount.errors }}
         </div>
 
+        <div>
+          <label for="{{ form.prize_received.id_for_label }}"
+            >{{ form.prize_received.label }}</label
+          >
+          {{ form.prize_received }} {{ form.prize_received.errors }}
+        </div>
+
         <div class="actions">
           <button type="submit" class="button">Salvar jogo</button>
           <a class="button-link" href="/financeiro/">Cancelar</a>
