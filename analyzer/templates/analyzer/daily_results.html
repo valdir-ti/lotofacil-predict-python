@@ -442,7 +442,7 @@
                       <span
                         class="game-badge {% if not game.is_checked %}pending{% elif game.is_contemplated %}success{% else %}neutral{% endif %}"
                       >
-                        {% if not game.is_checked %}Aguardando sorteio{% elif game.is_contemplated %}🏆 Contemplado ({{ game.hits_count }} acertos){% else %}Não contemplado ({{ game.hits_count }} acertos){% endif %}
+                        {% if not game.is_checked %}Aguardando sorteio{% elif game.is_contemplated %}🏆 Contemplado ({{ game.hits_count }} acertos){% if game.prize_received %} — Recebido{% else %} — Não recebido{% endif %}{% else %}Não contemplado ({{ game.hits_count }} acertos){% endif %}
                       </span>
                     </div>
                     <div class="game-chips">

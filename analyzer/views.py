@@ -267,9 +267,11 @@ def daily_result_edit(request, record_id):
 	)
 	form_initial = {'games': initial_games}
 	form = DailyBetResultForm(instance=record, initial=form_initial)
+	form.add_game_received_fields(existing_games)
 
 	if request.method == 'POST':
 		form = DailyBetResultForm(request.POST, instance=record, initial=form_initial)
+		form.add_game_received_fields(existing_games)
 		if form.is_valid():
 			submitted_games = form.cleaned_data['games']
 			current_games = [list(game.dezenas) for game in existing_games]
@@ -283,6 +285,8 @@ def daily_result_edit(request, record_id):
 				with transaction.atomic():
 					form.save()
 					for index, game in enumerate(existing_games):
+						received_field = f'game_{game.pk}_prize_received'
+						received = form.cleaned_data.get(received_field) or False
 						if index < len(submitted_games):
 							new_numbers = submitted_games[index]
 							if list(game.dezenas) != new_numbers:
@@ -294,8 +298,12 @@ def daily_result_edit(request, record_id):
 								game.hits_count = None
 								game.matched_numbers = None
 								game.prize_amount = None
+								game.prize_received = False
 								game.checked_at = None
 								game.save()
+							elif game.prize_received != received:
+								game.prize_received = received
+								game.save(update_fields=['prize_received'])
 						elif game.prize_amount:
 							record.returned_amount -= game.prize_amount
 							game.delete()
@@ -319,6 +327,7 @@ def daily_result_edit(request, record_id):
 	context = {
 		'form': form,
 		'record': record,
+		'existing_games': existing_games,
 		'page_title': 'Editar Registro Financeiro',
 		'page_heading': 'Editar Registro Diário',
 		'page_subtitle': 'Atualize os dados do registro selecionado.',

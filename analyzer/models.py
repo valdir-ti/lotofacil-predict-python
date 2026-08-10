@@ -106,6 +106,7 @@ class ConfirmedGame(models.Model):
 		blank=True,
 		validators=[MinValueValidator(0)],
 	)
+	prize_received = models.BooleanField('Recebido', default=False)
 	checked_at = models.DateTimeField('Conferido em', null=True, blank=True)
 	created_at = models.DateTimeField(auto_now_add=True)
 
