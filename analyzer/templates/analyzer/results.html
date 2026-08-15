@@ -483,10 +483,11 @@
         confirmAllBtn.addEventListener('click', function () {
           const cards = Array.prototype.slice.call(document.querySelectorAll('.ai-game-card'));
           const games = cards.map(function (card) {
-            const score = parseFloat(card.dataset.score);
+            // A pontuação exibida é de 0 a 100, mas a API persiste de 0 a 1.
+            const displayedScore = parseFloat(card.dataset.score);
             return {
               numbers: card.dataset.numbers.split(',').map(Number),
-              score: isNaN(score) ? null : score,
+              score: isNaN(displayedScore) ? null : displayedScore / 100,
               rationale: card.dataset.rationale || '',
             };
           });
