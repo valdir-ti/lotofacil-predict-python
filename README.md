@@ -174,9 +174,13 @@ Copie [ .env.example ](.env.example) para `.env` e ajuste os valores necessarios
 
 ```env
 DEBUG=True
-SECRET_KEY=django-insecure-dev-only-change-me
+SECRET_KEY=local-development-only-key
 ALLOWED_HOSTS=localhost,127.0.0.1
 ```
+
+Em produção, mantenha `DEBUG=False`, use uma `SECRET_KEY` longa e aleatória e
+configure explicitamente `ALLOWED_HOSTS`. A aplicação rejeita chaves padrão ou
+ausentes quando executada em modo de produção.
 
 Observacoes:
 

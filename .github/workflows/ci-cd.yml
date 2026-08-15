@@ -17,6 +17,8 @@ jobs:
       DATABASE_URL: ''
       DEBUG: 'False'
       SECRET_KEY: ci-only-secret
+      ALLOWED_HOSTS: localhost,127.0.0.1
+      SECURE_SSL_REDIRECT: 'False'
 
     steps:
       - name: Baixar código
