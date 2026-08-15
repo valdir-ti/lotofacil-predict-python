@@ -14,7 +14,11 @@ from django.contrib.auth.decorators import login_required
 from .forms import DailyBetResultForm, ExcelUploadForm, ManualGameForm
 from .models import ConfirmedGame, DailyBetResult
 from .services.bet_checker import check_pending_games
-from .services.bet_confirmation import InvalidGameError, confirm_ai_games
+from .services.bet_confirmation import (
+    InvalidGameError,
+    confirm_ai_games,
+    validate_confirmation_payload,
+)
 from .services.excel_parser import parse_lotofacil_excel
 from .services.lotofacil_api import fetch_next_lotofacil_draw
 from .services.metrics import build_dashboard_metrics
@@ -391,21 +395,8 @@ def confirm_ai_games_view(request):
 	except json.JSONDecodeError:
 		return JsonResponse({'error': 'Invalid JSON payload.'}, status=400)
 
-	games = payload.get('games')
-	if games is None and 'numbers' in payload:
-		games = [
-			{
-				'numbers': payload.get('numbers'),
-				'score': payload.get('score'),
-				'rationale': payload.get('rationale'),
-			}
-		]
-	concurso = payload.get('concurso')
-
-	if not isinstance(games, list) or not games:
-		return JsonResponse({'error': 'At least one game is required.'}, status=400)
-
 	try:
+		games, concurso = validate_confirmation_payload(payload)
 		created_games = confirm_ai_games(
 			play_date=timezone.localdate(),
 			games=games,

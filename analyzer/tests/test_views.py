@@ -381,6 +381,13 @@ class FinancialViewsTests(AuthenticatedViewTestCase):
 
 
 class ConfirmAiGameViewTests(AuthenticatedViewTestCase):
+    def post_payload(self, payload):
+        return self.client.post(
+            '/financeiro/confirmar-jogo/',
+            data=json.dumps(payload),
+            content_type='application/json',
+        )
+
     def test_confirms_valid_game_and_persists_record(self):
         response = self.client.post(
             '/financeiro/confirmar-jogo/',
@@ -418,6 +425,38 @@ class ConfirmAiGameViewTests(AuthenticatedViewTestCase):
     def test_rejects_get_method(self):
         response = self.client.get('/financeiro/confirmar-jogo/')
         self.assertEqual(response.status_code, 405)
+
+    def test_rejects_unknown_payload_fields(self):
+        response = self.post_payload(
+            {'numbers': list(range(1, 16)), 'unexpected': True}
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('unsupported fields', response.json()['error'])
+
+    def test_rejects_non_integer_numbers(self):
+        response = self.post_payload(
+            {'numbers': ['1', *range(2, 16)]}
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('list of integers', response.json()['error'])
+
+    def test_rejects_invalid_score_and_concurso(self):
+        response = self.post_payload(
+            {'numbers': list(range(1, 16)), 'score': 1.5, 'concurso': True}
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('score', response.json()['error'])
+
+    def test_rejects_too_many_games(self):
+        response = self.post_payload(
+            {'games': [{'numbers': list(range(1, 16))}] * 21}
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('At most', response.json()['error'])
 
 
 class ConferirApostasViewTests(AuthenticatedViewTestCase):

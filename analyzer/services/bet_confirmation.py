@@ -1,6 +1,7 @@
 """Service to confirm AI-generated games and persist them as financial records."""
 
 from decimal import Decimal
+import math
 
 from django.conf import settings
 from django.db import transaction
@@ -8,12 +9,87 @@ from django.db import transaction
 from ..models import ConfirmedGame, DailyBetResult
 from .game_validation import InvalidGameError, validate_numbers
 
-__all__ = ['InvalidGameError', 'confirm_ai_game', 'confirm_ai_games']
+__all__ = [
+    'InvalidGameError',
+    'confirm_ai_game',
+    'confirm_ai_games',
+    'validate_confirmation_payload',
+]
+
+
+def _validate_game_payload(game, index):
+    if not isinstance(game, dict):
+        raise InvalidGameError(f'Game {index} must be an object.')
+
+    allowed_keys = {'numbers', 'score', 'rationale'}
+    unknown_keys = set(game) - allowed_keys
+    if unknown_keys:
+        raise InvalidGameError(
+            f'Game {index} contains unsupported fields: {sorted(unknown_keys)}.'
+        )
+    if 'numbers' not in game:
+        raise InvalidGameError(f'Game {index} must contain numbers.')
+
+    numbers = game['numbers']
+    if not isinstance(numbers, list) or any(
+        isinstance(value, bool) or not isinstance(value, int) for value in numbers
+    ):
+        raise InvalidGameError(f'Game {index} numbers must be a list of integers.')
+
+    score = game.get('score')
+    if score is not None:
+        if isinstance(score, bool) or not isinstance(score, (int, float)):
+            raise InvalidGameError(f'Game {index} score must be a number or null.')
+        if not math.isfinite(score) or not 0 <= score <= 1:
+            raise InvalidGameError(f'Game {index} score must be between 0 and 1.')
+
+    rationale = game.get('rationale', '')
+    if rationale is not None and not isinstance(rationale, str):
+        raise InvalidGameError(f'Game {index} rationale must be text or null.')
+    if rationale and len(rationale) > 10000:
+        raise InvalidGameError(f'Game {index} rationale is too long.')
+
+
+def validate_confirmation_payload(payload):
+    """Validate the public confirmation JSON shape before persistence."""
+    if not isinstance(payload, dict):
+        raise InvalidGameError('Payload must be a JSON object.')
+
+    allowed_keys = {'games', 'numbers', 'score', 'rationale', 'concurso'}
+    unknown_keys = set(payload) - allowed_keys
+    if unknown_keys:
+        raise InvalidGameError(
+            f'Payload contains unsupported fields: {sorted(unknown_keys)}.'
+        )
+    if 'games' in payload and 'numbers' in payload:
+        raise InvalidGameError('Use games or numbers, not both.')
+
+    if 'games' in payload:
+        games = payload['games']
+        if not isinstance(games, list) or not games:
+            raise InvalidGameError('At least one game is required.')
+    elif 'numbers' in payload:
+        games = [{'numbers': payload.get('numbers'), 'score': payload.get('score'), 'rationale': payload.get('rationale')}]
+    else:
+        raise InvalidGameError('At least one game is required.')
+
+    max_games = settings.MAX_CONFIRMATION_GAMES
+    if len(games) > max_games:
+        raise InvalidGameError(f'At most {max_games} games can be confirmed at once.')
+    for index, game in enumerate(games, start=1):
+        _validate_game_payload(game, index)
+
+    concurso = payload.get('concurso')
+    if concurso is not None and (isinstance(concurso, bool) or not isinstance(concurso, int) or concurso <= 0):
+        raise InvalidGameError('concurso must be a positive integer or null.')
+    return games, concurso
 
 
 def _parse_concurso(concurso):
     if concurso in (None, ''):
         return None
+    if isinstance(concurso, bool):
+        raise InvalidGameError(f'Invalid concurso: {concurso!r}')
     try:
         parsed_concurso = int(concurso)
     except (TypeError, ValueError):
