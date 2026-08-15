@@ -4,6 +4,7 @@ import json
 from unittest.mock import patch
 
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.contrib.auth.models import User
 from django.test import TestCase
 from openpyxl import Workbook
 
@@ -44,7 +45,17 @@ def _model_prediction():
     }
 
 
-class HomeViewTests(TestCase):
+class AuthenticatedViewTestCase(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username='test-user',
+            email='test@example.com',
+            password='unused-password',
+        )
+        self.client.force_login(self.user)
+
+
+class HomeViewTests(AuthenticatedViewTestCase):
     @patch('analyzer.views.fetch_next_lotofacil_draw')
     def test_home_page_loads(self, mock_next_draw):
         mock_next_draw.return_value = {
@@ -73,12 +84,14 @@ class HomeViewTests(TestCase):
         }
 
         DailyBetResult.objects.create(
+            owner=self.user,
             play_date='2026-07-23',
             concurso=3599,
             invested_amount=Decimal('10.50'),
             returned_amount=Decimal('5.00'),
         )
         DailyBetResult.objects.create(
+            owner=self.user,
             play_date='2026-07-24',
             concurso=3600,
             invested_amount=Decimal('4.50'),
@@ -172,7 +185,7 @@ class HomeViewTests(TestCase):
         self.assertNotIn('graphs', response.json())
 
 
-class FinancialViewsTests(TestCase):
+class FinancialViewsTests(AuthenticatedViewTestCase):
     def test_financial_list_page_loads(self):
         response = self.client.get('/financeiro/')
 
@@ -221,6 +234,7 @@ class FinancialViewsTests(TestCase):
 
     def test_financial_create_blocks_duplicate_date(self):
         DailyBetResult.objects.create(
+            owner=self.user,
             play_date='2026-07-24',
             concurso=3600,
             invested_amount=Decimal('30.00'),
@@ -245,12 +259,14 @@ class FinancialViewsTests(TestCase):
 
     def test_financial_list_shows_aggregated_values(self):
         DailyBetResult.objects.create(
+            owner=self.user,
             play_date='2026-07-23',
             concurso=3599,
             invested_amount=Decimal('30.00'),
             returned_amount=Decimal('0.00'),
         )
         DailyBetResult.objects.create(
+            owner=self.user,
             play_date='2026-07-24',
             concurso=3600,
             invested_amount=Decimal('45.00'),
@@ -270,6 +286,7 @@ class FinancialViewsTests(TestCase):
     def test_financial_list_pagination_renders_page_values(self):
         for index in range(11):
             DailyBetResult.objects.create(
+            owner=self.user,
                 play_date=date(2026, 7, 1 + index),
                 concurso=3500 + index,
                 invested_amount=Decimal('10.00'),
@@ -286,6 +303,7 @@ class FinancialViewsTests(TestCase):
 
     def test_financial_edit_updates_record(self):
         record = DailyBetResult.objects.create(
+            owner=self.user,
             play_date='2026-07-24',
             concurso=3600,
             invested_amount=Decimal('30.00'),
@@ -315,12 +333,14 @@ class FinancialViewsTests(TestCase):
 
     def test_financial_edit_blocks_duplicate_date(self):
         DailyBetResult.objects.create(
+            owner=self.user,
             play_date='2026-07-23',
             concurso=3599,
             invested_amount=Decimal('20.00'),
             returned_amount=Decimal('0.00'),
         )
         record = DailyBetResult.objects.create(
+            owner=self.user,
             play_date='2026-07-24',
             concurso=3600,
             invested_amount=Decimal('30.00'),
@@ -343,6 +363,7 @@ class FinancialViewsTests(TestCase):
 
     def test_financial_delete_deactivates_record(self):
         record = DailyBetResult.objects.create(
+            owner=self.user,
             play_date='2026-07-24',
             concurso=3600,
             invested_amount=Decimal('30.00'),
@@ -359,7 +380,7 @@ class FinancialViewsTests(TestCase):
         self.assertEqual(DailyBetResult.objects.count(), 1)
 
 
-class ConfirmAiGameViewTests(TestCase):
+class ConfirmAiGameViewTests(AuthenticatedViewTestCase):
     def test_confirms_valid_game_and_persists_record(self):
         response = self.client.post(
             '/financeiro/confirmar-jogo/',
@@ -399,7 +420,7 @@ class ConfirmAiGameViewTests(TestCase):
         self.assertEqual(response.status_code, 405)
 
 
-class ConferirApostasViewTests(TestCase):
+class ConferirApostasViewTests(AuthenticatedViewTestCase):
     @patch('analyzer.views.check_pending_games')
     def test_manual_check_triggers_service_with_force_true(self, mock_check):
         mock_check.return_value = {'ran': True, 'checked_count': 2, 'contemplated_count': 1}
@@ -415,12 +436,13 @@ class ConferirApostasViewTests(TestCase):
         self.assertEqual(response.status_code, 302)
 
 
-class DailyResultsGamesRenderingTests(TestCase):
+class DailyResultsGamesRenderingTests(AuthenticatedViewTestCase):
     @patch('analyzer.views.check_pending_games')
     def test_shows_confirmed_game_with_hit_numbers(self, mock_check):
         mock_check.return_value = {'ran': False, 'checked_count': 0, 'contemplated_count': 0}
 
         daily_result = DailyBetResult.objects.create(
+            owner=self.user,
             play_date='2026-08-05',
             concurso=3752,
             invested_amount=Decimal('3.50'),
@@ -451,6 +473,7 @@ class DailyResultsGamesRenderingTests(TestCase):
         mock_check.return_value = {'ran': False, 'checked_count': 0, 'contemplated_count': 0}
 
         daily_result = DailyBetResult.objects.create(
+            owner=self.user,
             play_date='2026-08-05',
             concurso=3752,
             invested_amount=Decimal('3.50'),
@@ -468,3 +491,4 @@ class DailyResultsGamesRenderingTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Aguardando sorteio')
         self.assertNotContains(response, '{% elif')
+

@@ -9,6 +9,7 @@ from django.db import transaction
 from django.db.models import Count, Sum
 from django.utils import timezone
 from django.shortcuts import get_object_or_404, redirect, render
+from django.contrib.auth.decorators import login_required
 
 from .forms import DailyBetResultForm, ExcelUploadForm, ManualGameForm
 from .models import ConfirmedGame, DailyBetResult
@@ -20,7 +21,6 @@ from .services.metrics import build_dashboard_metrics
 from .services.chatgpt_client import generate_games_from_excel_file
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
-from django.views.decorators.csrf import csrf_exempt
 
 
 DAILY_RESULTS_PAGE_SIZE = 10
@@ -29,9 +29,10 @@ DAILY_RESULTS_PAGE_SIZE = 10
 logger = logging.getLogger(__name__)
 
 
-def _financial_chart_data():
+def _financial_chart_data(user):
 	records = list(
 		DailyBetResult.active_objects.active()
+		.filter(owner=user)
 		.prefetch_related('games')
 		.order_by('play_date')[:30]
 	)
@@ -100,6 +101,7 @@ def _financial_chart_data():
 	}
 
 
+@login_required
 def home(request):
 	try:
 		check_pending_games(force=False)
@@ -107,7 +109,7 @@ def home(request):
 		logger.exception('Falha ao conferir apostas automaticamente.')
 
 	form = ExcelUploadForm()
-	chart_data = _financial_chart_data()
+	chart_data = _financial_chart_data(request.user)
 	next_draw = fetch_next_lotofacil_draw()
 
 	if request.method == 'POST':
@@ -172,13 +174,14 @@ def home(request):
 	)
 
 
+@login_required
 def daily_results(request):
 	try:
 		check_pending_games(force=False)
 	except Exception:
 		logger.exception('Falha ao conferir apostas automaticamente.')
 
-	records = DailyBetResult.active_objects.active().prefetch_related('games')
+	records = DailyBetResult.active_objects.active().filter(owner=request.user).prefetch_related('games')
 	aggregates = records.aggregate(
 		total_invested=Sum('invested_amount'),
 		total_returned=Sum('returned_amount'),
@@ -206,6 +209,7 @@ def daily_results(request):
 	return render(request, 'analyzer/daily_results.html', context)
 
 
+@login_required
 def conferir_apostas(request):
 	if request.method != 'POST':
 		return redirect('daily_results')
@@ -228,14 +232,17 @@ def conferir_apostas(request):
 	return redirect('daily_results')
 
 
+@login_required
 def daily_result_create(request):
-	form = DailyBetResultForm()
+	form = DailyBetResultForm(owner=request.user)
 
 	if request.method == 'POST':
-		form = DailyBetResultForm(request.POST)
+		form = DailyBetResultForm(request.POST, owner=request.user)
 		if form.is_valid():
 			with transaction.atomic():
-				record = form.save()
+				record = form.save(commit=False)
+				record.owner = request.user
+				record.save()
 				for dezenas in form.cleaned_data['games']:
 					ConfirmedGame.objects.create(
 						daily_result=record,
@@ -258,19 +265,20 @@ def daily_result_create(request):
 	return render(request, 'analyzer/daily_result_form.html', context)
 
 
+@login_required
 def daily_result_edit(request, record_id):
-	record = get_object_or_404(DailyBetResult.active_objects.active(), pk=record_id)
+	record = get_object_or_404(DailyBetResult.active_objects.active(), pk=record_id, owner=request.user)
 	existing_games = list(record.games.all())
 	initial_games = '\n'.join(
 		','.join(str(number) for number in game.dezenas)
 		for game in existing_games
 	)
 	form_initial = {'games': initial_games}
-	form = DailyBetResultForm(instance=record, initial=form_initial)
+	form = DailyBetResultForm(instance=record, initial=form_initial, owner=request.user)
 	form.add_game_received_fields(existing_games)
 
 	if request.method == 'POST':
-		form = DailyBetResultForm(request.POST, instance=record, initial=form_initial)
+		form = DailyBetResultForm(request.POST, instance=record, initial=form_initial, owner=request.user)
 		form.add_game_received_fields(existing_games)
 		if form.is_valid():
 			submitted_games = form.cleaned_data['games']
@@ -338,8 +346,9 @@ def daily_result_edit(request, record_id):
 	return render(request, 'analyzer/daily_result_form.html', context)
 
 
+@login_required
 def daily_result_delete(request, record_id):
-	record = get_object_or_404(DailyBetResult.active_objects.active(), pk=record_id)
+	record = get_object_or_404(DailyBetResult.active_objects.active(), pk=record_id, owner=request.user)
 
 	if request.method == 'POST':
 		record.is_active = False
@@ -359,7 +368,7 @@ def daily_result_delete(request, record_id):
 	return render(request, 'analyzer/daily_result_delete.html', context)
 
 
-@csrf_exempt
+@login_required
 @require_POST
 def upload_and_predict(request):
 	uploaded_file = request.FILES.get('file')
@@ -374,6 +383,7 @@ def upload_and_predict(request):
 	return JsonResponse(result)
 
 
+@login_required
 @require_POST
 def confirm_ai_games_view(request):
 	try:
@@ -400,6 +410,7 @@ def confirm_ai_games_view(request):
 			play_date=timezone.localdate(),
 			games=games,
 			concurso=concurso,
+			owner=request.user,
 		)
 	except InvalidGameError as exc:
 		return JsonResponse({'error': str(exc)}, status=400)
@@ -418,8 +429,9 @@ def confirm_ai_games_view(request):
 	)
 
 
+@login_required
 def add_manual_game(request, record_id):
-	record = get_object_or_404(DailyBetResult.active_objects.active(), pk=record_id)
+	record = get_object_or_404(DailyBetResult.active_objects.active(), pk=record_id, owner=request.user)
 	form = ManualGameForm(initial={'concurso': record.concurso})
 
 	if request.method == 'POST':

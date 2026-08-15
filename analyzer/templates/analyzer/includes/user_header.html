@@ -1,0 +1,69 @@
+<style>
+  .app-user-header {
+    width: min(1180px, 100%);
+    margin: 0 auto 18px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+    padding: 10px 0;
+  }
+  .app-user-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+  }
+  .app-user-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid rgba(11, 110, 79, .25);
+  }
+  .app-user-fallback {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    background: #0b6e4f;
+    font-weight: 700;
+  }
+  .app-user-name {
+    max-width: 240px;
+    overflow: hidden;
+    color: #17203a;
+    font-weight: 700;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .app-logout-button {
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 8px 12px;
+    color: #334155;
+    background: #fff;
+    font: inherit;
+    font-size: .9rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .app-logout-button:hover { background: #f8fafc; }
+</style>
+
+<header class="app-user-header">
+  <div class="app-user-info">
+    {% with google_account=request.user.socialaccount_set.all.0 %}
+      {% if google_account.extra_data.picture %}
+        <img class="app-user-avatar" src="{{ google_account.extra_data.picture }}" alt="Foto de {{ request.user.get_full_name|default:request.user.email }}" />
+      {% else %}
+        <span class="app-user-avatar app-user-fallback">{{ request.user.email|first|upper }}</span>
+      {% endif %}
+    {% endwith %}
+    <span class="app-user-name" title="{{ request.user.email }}">{{ request.user.get_full_name|default:request.user.email }}</span>
+  </div>
+  <form method="post" action="{% url 'account_logout' %}">
+    {% csrf_token %}
+    <button class="app-logout-button" type="submit">Sair</button>
+  </form>
+</header>

@@ -23,7 +23,7 @@ def _parse_concurso(concurso):
     return parsed_concurso
 
 
-def confirm_ai_games(play_date, games, concurso=None):
+def confirm_ai_games(play_date, games, concurso=None, owner=None):
     """Confirm a batch of AI-recommended games in a single financial movement.
 
     ``games`` is a list of dicts with keys ``numbers`` (required), ``score``
@@ -55,12 +55,16 @@ def confirm_ai_games(play_date, games, concurso=None):
     with transaction.atomic():
         daily_result, _created = DailyBetResult.active_objects.active().get_or_create(
             play_date=play_date,
+            owner=owner,
             defaults={
                 'invested_amount': Decimal('0'),
                 'returned_amount': Decimal('0'),
                 'concurso': parsed_concurso,
+                'owner': owner,
             },
         )
+        if owner is not None and daily_result.owner_id != owner.id:
+            raise InvalidGameError('The daily result belongs to another user.')
         daily_result.invested_amount = daily_result.invested_amount + total_amount
         if not daily_result.concurso and parsed_concurso:
             daily_result.concurso = parsed_concurso
@@ -82,7 +86,7 @@ def confirm_ai_games(play_date, games, concurso=None):
     return created_games
 
 
-def confirm_ai_game(play_date, numbers, concurso=None, score=None, rationale=''):
+def confirm_ai_game(play_date, numbers, concurso=None, score=None, rationale='', owner=None):
     """Confirm a single AI-recommended game. Returns the created ConfirmedGame.
 
     Kept for backwards compatibility; delegates to ``confirm_ai_games``.
@@ -91,5 +95,6 @@ def confirm_ai_game(play_date, numbers, concurso=None, score=None, rationale='')
         play_date,
         [{'numbers': numbers, 'score': score, 'rationale': rationale}],
         concurso=concurso,
+        owner=owner,
     )
     return games[0]

@@ -1,4 +1,5 @@
 from django.core.validators import MaxValueValidator, MinValueValidator
+from django.conf import settings
 from django.db import models
 from django.db.models import Q
 
@@ -11,6 +12,15 @@ class DailyBetResultQuerySet(models.QuerySet):
 class DailyBetResult(models.Model):
 	objects = models.Manager()
 	active_objects = DailyBetResultQuerySet.as_manager()
+
+	owner = models.ForeignKey(
+		settings.AUTH_USER_MODEL,
+		on_delete=models.PROTECT,
+		related_name='daily_bet_results',
+		null=True,
+		blank=True,
+		verbose_name='Usuario',
+	)
 
 	play_date = models.DateField('Data do jogo')
 	concurso = models.PositiveIntegerField('Concurso', null=True, blank=True)
@@ -38,9 +48,9 @@ class DailyBetResult(models.Model):
 		verbose_name_plural = 'Resultados diarios'
 		constraints = [
 			models.UniqueConstraint(
-				fields=['play_date'],
+				fields=['owner', 'play_date'],
 				condition=Q(is_active=True),
-				name='unique_active_daily_bet_result_date',
+				name='unique_active_daily_bet_result_owner_date',
 			),
 		]
 

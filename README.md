@@ -15,6 +15,33 @@ Aplicacao web em Django para:
 - SQLite (padrao local) ou PostgreSQL (via `DATABASE_URL`)
 - WhiteNoise (arquivos estaticos)
 - Gunicorn (producao)
+- Google OAuth via django-allauth (em preparacao)
+
+## Preparacao do login Google
+
+O projeto usa OAuth 2.0 do Google e nao deve armazenar `GOOGLE_CLIENT_SECRET` no
+repositorio. Depois de criar um cliente OAuth do tipo **Aplicacao da Web** no
+Google Cloud Console, configure no `.env` local e nas variaveis do ambiente de
+producao:
+
+```env
+GOOGLE_CLIENT_ID=seu-client-id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=seu-client-secret
+```
+
+Adicione ao cliente OAuth estas origens autorizadas:
+
+- `http://localhost:8000`
+- `https://lotof.intratec.dev.br`
+
+E estes URIs de redirecionamento autorizados:
+
+- `http://localhost:8000/accounts/google/login/callback/`
+- `https://lotof.intratec.dev.br/accounts/google/login/callback/`
+
+No Google Cloud Console, configure a tela de consentimento OAuth com o nome do
+produto e um e-mail de suporte. O escopo usado pelo aplicativo sera `profile`
+e `email`.
 
 Dependencias estao em [requirements.txt](requirements.txt).
 
