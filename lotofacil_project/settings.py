@@ -85,11 +85,13 @@ WSGI_APPLICATION = 'lotofacil_project.wsgi.application'
 
 DATABASE_URL = os.getenv('DATABASE_URL')
 if DATABASE_URL:
+    database_options = {'conn_max_age': 600}
+    if DATABASE_URL.startswith(('postgres://', 'postgresql://')):
+        database_options['ssl_require'] = True
     DATABASES = {
         'default': dj_database_url.parse(
             DATABASE_URL,
-            conn_max_age=600,
-            ssl_require=True,
+            **database_options,
         )
     }
 else:
