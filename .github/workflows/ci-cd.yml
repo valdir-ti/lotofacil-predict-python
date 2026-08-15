@@ -51,8 +51,13 @@ jobs:
 
       - name: Instalar Render CLI
         run: |
+          export GOBIN="$RUNNER_TEMP/render-bin"
+          mkdir -p "$GOBIN"
           go install github.com/render-oss/cli@latest
-          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+          if [ -f "$GOBIN/cli" ]; then
+            mv "$GOBIN/cli" "$GOBIN/render"
+          fi
+          echo "$GOBIN" >> "$GITHUB_PATH"
 
       - name: Disparar deploy
         env:
