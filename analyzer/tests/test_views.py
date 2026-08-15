@@ -411,6 +411,60 @@ class ConfirmAiGameViewTests(AuthenticatedViewTestCase):
         self.assertEqual(daily_result.invested_amount, Decimal('3.50'))
         self.assertEqual(ConfirmedGame.objects.count(), 1)
 
+    def test_confirms_multiple_games_and_persists_total(self):
+        response = self.client.post(
+            '/financeiro/confirmar-jogos/',
+            data=json.dumps(
+                {
+                    'games': [
+                        {
+                            'numbers': list(range(1, 16)),
+                            'score': 0.88,
+                            'rationale': 'Primeiro jogo.',
+                        },
+                        {
+                            'numbers': list(range(2, 17)),
+                            'score': 0.76,
+                            'rationale': 'Segundo jogo.',
+                        },
+                    ],
+                    'concurso': 3752,
+                }
+            ),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertTrue(payload['ok'])
+        self.assertEqual(len(payload['game_ids']), 2)
+        self.assertEqual(payload['invested_amount'], 7.0)
+        self.assertEqual(DailyBetResult.objects.count(), 1)
+        self.assertEqual(ConfirmedGame.objects.count(), 2)
+        self.assertEqual(
+            DailyBetResult.objects.get().invested_amount, Decimal('7.00')
+        )
+
+    def test_batch_rejects_invalid_game_without_persisting_any_game(self):
+        response = self.client.post(
+            '/financeiro/confirmar-jogos/',
+            data=json.dumps(
+                {
+                    'games': [
+                        {'numbers': list(range(1, 16))},
+                        {'numbers': list(range(1, 15))},
+                    ],
+                    'concurso': 3752,
+                }
+            ),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('error', response.json())
+        self.assertEqual(DailyBetResult.objects.count(), 0)
+        self.assertEqual(ConfirmedGame.objects.count(), 0)
+
     def test_rejects_invalid_numbers(self):
         response = self.client.post(
             '/financeiro/confirmar-jogo/',
@@ -423,7 +477,7 @@ class ConfirmAiGameViewTests(AuthenticatedViewTestCase):
         self.assertEqual(DailyBetResult.objects.count(), 0)
 
     def test_rejects_get_method(self):
-        response = self.client.get('/financeiro/confirmar-jogo/')
+        response = self.client.get('/financeiro/confirmar-jogos/')
         self.assertEqual(response.status_code, 405)
 
     def test_rejects_unknown_payload_fields(self):
