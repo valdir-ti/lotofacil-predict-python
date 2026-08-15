@@ -6,7 +6,7 @@ from django.db import transaction
 from django.db.models import F
 from django.utils import timezone
 
-from ..models import BetConferenceRun, ConfirmedGame
+from ..models import BetConferenceLock, BetConferenceRun, ConfirmedGame
 from .lotofacil_api import fetch_lotofacil_result
 
 logger = logging.getLogger(__name__)
@@ -36,22 +36,22 @@ def _check_games_for_concurso(concurso, result):
         prize_amount = prize_by_hits.get(hits_count) if is_contemplated else None
 
         with transaction.atomic():
-            game.hits_count = hits_count
-            game.matched_numbers = hits
-            game.is_contemplated = is_contemplated
-            game.prize_amount = prize_amount
-            game.is_checked = True
-            game.checked_at = timezone.now()
-            game.save(
-                update_fields=[
-                    'hits_count',
-                    'matched_numbers',
-                    'is_contemplated',
-                    'prize_amount',
-                    'is_checked',
-                    'checked_at',
-                ]
+            updated_count = ConfirmedGame.objects.filter(
+                pk=game.pk, is_checked=False
+            ).update(
+                hits_count=hits_count,
+                matched_numbers=hits,
+                is_contemplated=is_contemplated,
+                prize_amount=prize_amount,
+                is_checked=True,
+                checked_at=timezone.now(),
             )
+
+            # Another worker may have checked this game after the pending
+            # queryset was read. Only the winner of this conditional update
+            # may apply the financial return and counters.
+            if not updated_count:
+                continue
 
             if prize_amount:
                 type(game.daily_result).objects.filter(pk=game.daily_result_id).update(
@@ -72,36 +72,42 @@ def check_pending_games(force=False):
     logs a BetConferenceRun entry when it actually performs a check.
     Returns {'ran': bool, 'checked_count': int, 'contemplated_count': int}.
     """
-    if not force and _already_ran_today():
-        return {'ran': False, 'checked_count': 0, 'contemplated_count': 0}
+    # get_or_create makes the lock row available on fresh installations;
+    # select_for_update serializes workers on databases that support row locks.
+    BetConferenceLock.objects.get_or_create(name='global')
+    with transaction.atomic():
+        BetConferenceLock.objects.select_for_update().get(name='global')
 
-    pending_concursos = (
-        ConfirmedGame.objects.filter(is_checked=False, concurso__isnull=False)
-        .values_list('concurso', flat=True)
-        .distinct()
-    )
+        if not force and _already_ran_today():
+            return {'ran': False, 'checked_count': 0, 'contemplated_count': 0}
 
-    total_checked = 0
-    total_contemplated = 0
+        pending_concursos = (
+            ConfirmedGame.objects.filter(is_checked=False, concurso__isnull=False)
+            .values_list('concurso', flat=True)
+            .distinct()
+        )
 
-    for concurso in pending_concursos:
-        try:
-            result = fetch_lotofacil_result(concurso)
-        except Exception:
-            logger.exception('Falha ao buscar resultado do concurso %s.', concurso)
-            continue
+        total_checked = 0
+        total_contemplated = 0
 
-        if not result['has_data']:
-            continue
+        for concurso in pending_concursos:
+            try:
+                result = fetch_lotofacil_result(concurso)
+            except Exception:
+                logger.exception('Falha ao buscar resultado do concurso %s.', concurso)
+                continue
 
-        checked_count, contemplated_count = _check_games_for_concurso(concurso, result)
-        total_checked += checked_count
-        total_contemplated += contemplated_count
+            if not result['has_data']:
+                continue
 
-    BetConferenceRun.objects.create(
-        triggered_by=BetConferenceRun.TRIGGER_MANUAL if force else BetConferenceRun.TRIGGER_AUTO,
-        checked_count=total_checked,
-        contemplated_count=total_contemplated,
-    )
+            checked_count, contemplated_count = _check_games_for_concurso(concurso, result)
+            total_checked += checked_count
+            total_contemplated += contemplated_count
 
-    return {'ran': True, 'checked_count': total_checked, 'contemplated_count': total_contemplated}
+        BetConferenceRun.objects.create(
+            triggered_by=BetConferenceRun.TRIGGER_MANUAL if force else BetConferenceRun.TRIGGER_AUTO,
+            checked_count=total_checked,
+            contemplated_count=total_contemplated,
+        )
+
+        return {'ran': True, 'checked_count': total_checked, 'contemplated_count': total_contemplated}
