@@ -151,3 +151,13 @@ class BetConferenceRun(models.Model):
 
 	def __str__(self):
 		return f'{self.checked_at:%Y-%m-%d %H:%M} ({self.triggered_by})'
+
+
+class BetConferenceLock(models.Model):
+	"""Singleton row used to serialize conference workers."""
+
+	name = models.CharField(max_length=32, unique=True, default='global')
+
+	class Meta:
+		verbose_name = 'Trava de conferencia'
+		verbose_name_plural = 'Travas de conferencia'

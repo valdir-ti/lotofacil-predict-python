@@ -99,6 +99,24 @@ class CheckPendingGamesTests(TestCase):
         self.assertEqual(BetConferenceRun.objects.count(), 1)
 
     @patch('analyzer.services.bet_checker.fetch_lotofacil_result')
+    def test_forced_recheck_does_not_duplicate_financial_return(self, mock_fetch):
+        game = _make_pending_game(list(range(1, 16)))
+        mock_fetch.return_value = {
+            'has_data': True,
+            'drawn_numbers': set(range(1, 16)),
+            'prize_by_hits': {15: Decimal('500000.00')},
+        }
+
+        first_result = check_pending_games(force=True)
+        second_result = check_pending_games(force=True)
+
+        game.refresh_from_db()
+        game.daily_result.refresh_from_db()
+        self.assertEqual(first_result['checked_count'], 1)
+        self.assertEqual(second_result['checked_count'], 0)
+        self.assertEqual(game.daily_result.returned_amount, Decimal('500000.00'))
+
+    @patch('analyzer.services.bet_checker.fetch_lotofacil_result')
     def test_ignores_games_without_concurso(self, mock_fetch):
         daily_result = DailyBetResult.objects.create(
             play_date='2026-08-05',
