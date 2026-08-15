@@ -23,6 +23,10 @@ class ExcelUploadForm(forms.Form):
 
 
 class DailyBetResultForm(forms.ModelForm):
+    def __init__(self, *args, owner=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.owner = owner
+
     games = forms.CharField(
         required=False,
         label='Jogos para o sorteio',
@@ -83,6 +87,8 @@ class DailyBetResultForm(forms.ModelForm):
     def clean_play_date(self):
         play_date = self.cleaned_data['play_date']
         queryset = DailyBetResult.active_objects.active().filter(play_date=play_date)
+        if self.owner is not None:
+            queryset = queryset.filter(owner=self.owner)
         if self.instance.pk:
             queryset = queryset.exclude(pk=self.instance.pk)
 

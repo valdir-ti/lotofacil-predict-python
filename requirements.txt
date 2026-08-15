@@ -3,8 +3,9 @@ openpyxl==3.1.5
 dj-database-url==2.2.0
 gunicorn==22.0.0
 whitenoise==6.7.0
-psycopg==3.2.1
+psycopg[binary]==3.2.1
 django-cors-headers==4.4.0
+django-allauth[socialaccount]>=64.2.1,<66
 python-dotenv==1.0.1
 openai>=1.0.0
 requests>=2.31.0
