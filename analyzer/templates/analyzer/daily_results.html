@@ -273,6 +273,13 @@
         animation: spin 0.85s linear infinite;
       }
 
+      .button .spinner {
+        width: 14px;
+        height: 14px;
+        border-width: 2px;
+        border-top-color: currentColor;
+      }
+
       @keyframes spin {
         to {
           transform: rotate(360deg);
@@ -390,11 +397,12 @@
         <div class="actions">
           <h2 style="margin: 0">Historico diario</h2>
           <div style="display: flex; gap: 10px; flex-wrap: wrap">
-            <form method="post" action="/financeiro/conferir/">
+            <form method="post" action="/financeiro/conferir/" data-check-request="true">
               {% csrf_token %}
               <button
                 type="submit"
                 class="button secondary"
+                data-default-label="Conferir novamente"
                 style="
                   white-space: nowrap;
                   height: 40px;
@@ -403,7 +411,7 @@
                   justify-content: center;
                 "
               >
-                Conferir novamente
+                <span class="button-label">Conferir novamente</span>
               </button>
             </form>
             <a class="button" href="/financeiro/novo/" data-db-navigation="true"
@@ -540,16 +548,33 @@
       (function () {
         const overlay = document.getElementById("loading-overlay");
         const links = document.querySelectorAll('a[data-db-navigation="true"]');
+        const checkForm = document.querySelector('form[data-check-request="true"]');
 
-        if (!overlay || !links.length) {
+        if (overlay) {
+          links.forEach(function (link) {
+            link.addEventListener("click", function () {
+              overlay.classList.add("active");
+              overlay.setAttribute("aria-hidden", "false");
+            });
+          });
+        }
+
+        if (!checkForm) {
           return;
         }
 
-        links.forEach(function (link) {
-          link.addEventListener("click", function () {
+        checkForm.addEventListener("submit", function () {
+          const submitButton = checkForm.querySelector('button[type="submit"]');
+          if (submitButton) {
+            submitButton.disabled = true;
+            submitButton.setAttribute("aria-busy", "true");
+            submitButton.innerHTML = '<span class="spinner" aria-hidden="true"></span><span class="button-label">Conferindo...</span>';
+          }
+
+          if (overlay) {
             overlay.classList.add("active");
             overlay.setAttribute("aria-hidden", "false");
-          });
+          }
         });
       })();
     </script>
