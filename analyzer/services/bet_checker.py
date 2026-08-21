@@ -70,7 +70,7 @@ def check_pending_games(force=False):
 
     Skips the run if it already executed today, unless force=True. Always
     logs a BetConferenceRun entry when it actually performs a check.
-    Returns {'ran': bool, 'checked_count': int, 'contemplated_count': int}.
+    Returns counts of checked games, contemplated games and unavailable results.
     """
     # get_or_create makes the lock row available on fresh installations;
     # select_for_update serializes workers on databases that support row locks.
@@ -89,6 +89,7 @@ def check_pending_games(force=False):
 
         total_checked = 0
         total_contemplated = 0
+        unavailable_count = 0
 
         for concurso in pending_concursos:
             try:
@@ -98,6 +99,7 @@ def check_pending_games(force=False):
                 continue
 
             if not result['has_data']:
+                unavailable_count += 1
                 continue
 
             checked_count, contemplated_count = _check_games_for_concurso(concurso, result)
@@ -110,4 +112,9 @@ def check_pending_games(force=False):
             contemplated_count=total_contemplated,
         )
 
-        return {'ran': True, 'checked_count': total_checked, 'contemplated_count': total_contemplated}
+        return {
+            'ran': True,
+            'checked_count': total_checked,
+            'contemplated_count': total_contemplated,
+            'unavailable_count': unavailable_count,
+        }

@@ -218,6 +218,9 @@ OPENAI_MODEL = os.getenv('OPENAI_MODEL', 'gpt-5.4-nano')
 LLM_MAX_DRAWS = int(os.getenv('LLM_MAX_DRAWS', '500'))
 LLM_GAME_COUNT = int(os.getenv('LLM_GAME_COUNT', '3'))
 MAX_CONFIRMATION_GAMES = int(os.getenv('MAX_CONFIRMATION_GAMES', '20'))
+LOTOFACIL_API_TIMEOUT_SECONDS = float(
+    os.getenv('LOTOFACIL_API_TIMEOUT_SECONDS', '8')
+)
 
 # Valor unitario da aposta da Lotofacil, usado para calcular o valor investido
 # quando um jogo gerado pela IA e confirmado.

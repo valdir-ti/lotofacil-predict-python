@@ -1,11 +1,15 @@
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
 import json
+import logging
 from urllib.error import URLError
 from urllib.request import Request, urlopen
 
+from django.conf import settings
+
 LOTOFACIL_API_URL = 'https://servicebus2.caixa.gov.br/portaldeloterias/api/lotofacil'
 LOTOFACIL_API_FALLBACK_URL = 'https://loteriascaixa-api.herokuapp.com/api/lotofacil/latest'
+logger = logging.getLogger(__name__)
 
 
 def _normalize_contest_date(value):
@@ -95,14 +99,23 @@ def _extract_contest_data(payload):
     }
 
 
-def fetch_next_lotofacil_draw(timeout=4):
+def _request_timeout(timeout):
+    if timeout is not None:
+        return timeout
+    return settings.LOTOFACIL_API_TIMEOUT_SECONDS
+
+
+def fetch_next_lotofacil_draw(timeout=None):
+    timeout = _request_timeout(timeout)
     for api_url in (LOTOFACIL_API_URL, LOTOFACIL_API_FALLBACK_URL):
         try:
             payload = _fetch_payload(api_url, timeout=timeout)
             contest_data = _extract_contest_data(payload)
             if contest_data['has_data']:
                 return contest_data
-        except (URLError, TimeoutError, UnicodeDecodeError, json.JSONDecodeError, ValueError):
+            logger.warning('API da Lotofácil retornou dados incompletos: %s', api_url)
+        except (URLError, TimeoutError, OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
+            logger.warning('Falha ao consultar API da Lotofácil (%s): %s', api_url, exc)
             continue
 
     return _build_unavailable_response()
@@ -171,20 +184,51 @@ def _build_result_unavailable_response():
     return {'has_data': False, 'drawn_numbers': None, 'prize_by_hits': {}}
 
 
-def fetch_lotofacil_result(concurso, timeout=4):
+def _extract_contest_number(payload):
+    value = payload.get('numero') or payload.get('concurso')
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def fetch_lotofacil_result(concurso, timeout=None):
     """Fetch the official result for an already-drawn Lotofacil contest.
 
     Returns {'has_data': bool, 'drawn_numbers': set[int] | None, 'prize_by_hits': dict[int, Decimal]}.
     """
+    timeout = _request_timeout(timeout)
+    requested_contest = int(concurso)
     for base_url in (LOTOFACIL_API_URL, LOTOFACIL_API_FALLBACK_URL.rsplit('/latest', 1)[0]):
         api_url = f'{base_url}/{concurso}'
         try:
             payload = _fetch_payload(api_url, timeout=timeout)
-        except (URLError, TimeoutError, UnicodeDecodeError, json.JSONDecodeError, ValueError):
+        except (URLError, TimeoutError, OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
+            logger.warning(
+                'Falha ao consultar resultado do concurso %s (%s): %s',
+                requested_contest,
+                api_url,
+                exc,
+            )
+            continue
+
+        returned_contest = _extract_contest_number(payload)
+        if returned_contest != requested_contest:
+            logger.warning(
+                'API retornou concurso inesperado: solicitado=%s retornado=%s (%s)',
+                requested_contest,
+                returned_contest,
+                api_url,
+            )
             continue
 
         drawn_numbers = _parse_drawn_numbers(payload)
         if not drawn_numbers:
+            logger.warning(
+                'API não retornou 15 dezenas para o concurso %s (%s)',
+                requested_contest,
+                api_url,
+            )
             continue
 
         return {
