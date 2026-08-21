@@ -397,7 +397,11 @@
         <div class="actions">
           <h2 style="margin: 0">Historico diario</h2>
           <div style="display: flex; gap: 10px; flex-wrap: wrap">
-            <form method="post" action="/financeiro/conferir/" data-check-request="true">
+            <form
+              method="post"
+              action="/financeiro/conferir/"
+              data-check-request="true"
+            >
               {% csrf_token %}
               <button
                 type="submit"
@@ -451,7 +455,12 @@
                       <span
                         class="game-badge {% if not game.is_checked %}pending{% elif game.is_contemplated %}success{% else %}neutral{% endif %}"
                       >
-                        {% if not game.is_checked %}Aguardando sorteio{% elif game.is_contemplated %}🏆 Contemplado ({{ game.hits_count }} acertos){% if game.prize_received %} — Recebido{% else %} — Não recebido{% endif %}{% else %}Não contemplado ({{ game.hits_count }} acertos){% endif %}
+                        {% if not game.is_checked %}Aguardando sorteio{% elif
+                        game.is_contemplated %}🏆 Contemplado ({{
+                        game.hits_count }} acertos){% if game.prize_received %}
+                        — Recebido{% else %} — Não recebido{% endif %}{% else
+                        %}Não contemplado ({{ game.hits_count }} acertos){%
+                        endif %}
                       </span>
                     </div>
                     <div class="game-chips">
@@ -511,7 +520,8 @@
           >
           {% endif %}
           <span class="pagination-info"
-            >Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span
+            >Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages
+            }}</span
           >
           {% if page_obj.has_next %}
           <a
@@ -548,7 +558,9 @@
       (function () {
         const overlay = document.getElementById("loading-overlay");
         const links = document.querySelectorAll('a[data-db-navigation="true"]');
-        const checkForm = document.querySelector('form[data-check-request="true"]');
+        const checkForm = document.querySelector(
+          'form[data-check-request="true"]',
+        );
 
         if (overlay) {
           links.forEach(function (link) {
@@ -568,7 +580,8 @@
           if (submitButton) {
             submitButton.disabled = true;
             submitButton.setAttribute("aria-busy", "true");
-            submitButton.innerHTML = '<span class="spinner" aria-hidden="true"></span><span class="button-label">Conferindo...</span>';
+            submitButton.innerHTML =
+              '<span class="spinner" aria-hidden="true"></span>&nbsp&nbsp<span class="button-label">Conferindo...</span>';
           }
 
           if (overlay) {
