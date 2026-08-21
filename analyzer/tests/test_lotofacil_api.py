@@ -169,6 +169,20 @@ class LotofacilResultServiceTests(SimpleTestCase):
         self.assertNotIn(11, result['prize_by_hits'])
 
     @patch('analyzer.services.lotofacil_api.urlopen')
+    def test_rejects_result_for_a_different_contest(self, mock_urlopen):
+        payload = {
+            'numero': 3766,
+            'dezenasSorteadasOrdemSorteio': [str(n) for n in range(1, 16)],
+        }
+        mock_urlopen.return_value = _MockHttpResponse(json.dumps(payload).encode('utf-8'))
+
+        result = fetch_lotofacil_result(3767)
+
+        self.assertFalse(result['has_data'])
+        self.assertIsNone(result['drawn_numbers'])
+        self.assertEqual(mock_urlopen.call_count, 2)
+
+    @patch('analyzer.services.lotofacil_api.urlopen')
     def test_returns_unavailable_when_contest_not_drawn_yet(self, mock_urlopen):
         mock_urlopen.side_effect = URLError('not found')
 
@@ -177,4 +191,3 @@ class LotofacilResultServiceTests(SimpleTestCase):
         self.assertFalse(result['has_data'])
         self.assertIsNone(result['drawn_numbers'])
         self.assertEqual(result['prize_by_hits'], {})
-

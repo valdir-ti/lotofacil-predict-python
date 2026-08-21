@@ -225,7 +225,13 @@ def conferir_apostas(request):
 		messages.error(request, 'Não foi possível conferir as apostas agora. Tente novamente em instantes.')
 		return redirect('daily_results')
 
-	if result['checked_count'] == 0:
+	if result['checked_count'] == 0 and result.get('unavailable_count', 0):
+		messages.warning(
+			request,
+			'Não foi possível obter o resultado oficial de '
+			f"{result['unavailable_count']} concurso(s). Verifique os logs da aplicação.",
+		)
+	elif result['checked_count'] == 0:
 		messages.success(request, 'Conferência concluída. Nenhum jogo pendente com resultado disponível.')
 	else:
 		messages.success(
