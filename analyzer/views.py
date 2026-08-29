@@ -121,14 +121,18 @@ def home(request):
 		if form.is_valid():
 			try:
 				uploaded_file = form.cleaned_data['file']
+				game_count = form.cleaned_data['game_count']
 				parse_result = parse_lotofacil_excel(uploaded_file)
-				dashboard = build_dashboard_metrics(parse_result.draws)
+				dashboard = build_dashboard_metrics(parse_result.draws, game_count=game_count)
 				ai_games = []
 				ai_notes = ''
 				ai_error = ''
 				try:
 					uploaded_file.seek(0)
-					prediction = generate_games_from_excel_file(uploaded_file)
+					prediction = generate_games_from_excel_file(
+						uploaded_file,
+						game_count=game_count,
+					)
 					model_result = prediction['model_result']
 					ai_games = model_result['recommended_games']
 					ai_notes = model_result['meta']['notes']
@@ -145,7 +149,7 @@ def home(request):
 					'ai_games': ai_games,
 					'ai_notes': ai_notes,
 					'ai_used_draws': min(len(parse_result.draws), settings.LLM_MAX_DRAWS),
-					'ai_game_count': settings.LLM_GAME_COUNT,
+					'ai_game_count': game_count,
 					'ai_error': ai_error,
 					'ai_target_concurso': next_draw.get('next_contest_number'),
 					'ai_bet_unit_price': settings.AI_BET_UNIT_PRICE,
@@ -384,9 +388,15 @@ def upload_and_predict(request):
 	uploaded_file = request.FILES.get('file')
 	if not uploaded_file:
 		return JsonResponse({'error': 'file is required'}, status=400)
+	try:
+		game_count = int(request.POST.get('game_count', 3))
+	except (TypeError, ValueError):
+		return JsonResponse({'error': 'game_count must be an integer between 1 and 20'}, status=400)
+	if not 1 <= game_count <= 20:
+		return JsonResponse({'error': 'game_count must be an integer between 1 and 20'}, status=400)
 
 	try:
-		result = generate_games_from_excel_file(uploaded_file)
+		result = generate_games_from_excel_file(uploaded_file, game_count=game_count)
 	except Exception as e:
 		return JsonResponse({'error': str(e)}, status=500)
 

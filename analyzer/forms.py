@@ -7,6 +7,18 @@ from .services.game_validation import InvalidGameError, validate_numbers
 
 class ExcelUploadForm(forms.Form):
     file = forms.FileField(label='Arquivo Excel (.xlsx)')
+    game_count = forms.IntegerField(
+        label='Quantidade de jogos',
+        required=False,
+        min_value=1,
+        max_value=20,
+        initial=3,
+        widget=forms.NumberInput(attrs={'min': 1, 'max': 20, 'step': 1}),
+        help_text='Escolha entre 1 e 20 jogos. Padrão: 3.',
+    )
+
+    def clean_game_count(self):
+        return self.cleaned_data.get('game_count') or 3
 
     def clean_file(self):
         uploaded_file = self.cleaned_data['file']
