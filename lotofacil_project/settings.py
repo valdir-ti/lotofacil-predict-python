@@ -42,9 +42,6 @@ if not SECRET_KEY:
     SECRET_KEY = 'django-insecure-dev-only-change-me'
 
 configured_hosts = env_list('ALLOWED_HOSTS')
-render_hostname = os.getenv('RENDER_EXTERNAL_HOSTNAME', '').strip()
-if render_hostname and render_hostname not in configured_hosts:
-    configured_hosts.append(render_hostname)
 if not DEBUG and not configured_hosts:
     raise ImproperlyConfigured(
         'ALLOWED_HOSTS must be configured when DEBUG=False.'
