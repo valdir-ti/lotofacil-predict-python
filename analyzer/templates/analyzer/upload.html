@@ -149,6 +149,27 @@
         margin: 10px 0 12px;
       }
 
+      .upload-row label {
+        display: block;
+        margin-bottom: 6px;
+        color: #243d69;
+        font-weight: 600;
+      }
+
+      .upload-row input[type="number"] {
+        width: 110px;
+        padding: 9px 10px;
+        border: 1px solid #9cb8de;
+        border-radius: 8px;
+      }
+
+      .upload-help {
+        display: block;
+        margin-top: 5px;
+        color: #536589;
+        font-size: 0.88rem;
+      }
+
       .upload-row input[type="file"] {
         width: 100%;
         padding: 10px 12px;
@@ -579,6 +600,12 @@
         <h3 class="upload-form-title">Enviar arquivo Excel</h3>
         <div class="upload-row">{{ form.file }}</div>
         {{ form.file.errors }}
+        <div class="upload-row">
+          {{ form.game_count.label_tag }}
+          {{ form.game_count }}
+          <span class="upload-help">{{ form.game_count.help_text }}</span>
+          {{ form.game_count.errors }}
+        </div>
         <div class="upload-actions">
           <button id="submitButton" type="submit">Analisar arquivo</button>
         </div>

@@ -261,7 +261,7 @@ def calculate_portfolio_diversity(games: list[list[int]]) -> dict[str, float | i
     }
 
 
-def build_dashboard_metrics(draws: list[DrawRecord]) -> dict:
+def build_dashboard_metrics(draws: list[DrawRecord], game_count: int = 3) -> dict:
     if not draws:
         raise ValueError('Nao ha concursos para analisar.')
 
@@ -303,7 +303,7 @@ def build_dashboard_metrics(draws: list[DrawRecord]) -> dict:
         key=lambda item: (-item['qtd'], item['padrao']),
     )
     average_repeats = sum(repeats) / len(repeats) if repeats else 0.0
-    recommended_games = generate_recommended_games(draws)
+    recommended_games = generate_recommended_games(draws, target_count=game_count)
     return {
         'total_draws': total_draws,
         'most_frequent': metrics_desc[:10],
