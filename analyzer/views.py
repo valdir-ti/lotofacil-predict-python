@@ -391,9 +391,9 @@ def upload_and_predict(request):
 	try:
 		game_count = int(request.POST.get('game_count', 3))
 	except (TypeError, ValueError):
-		return JsonResponse({'error': 'game_count must be an integer between 1 and 20'}, status=400)
-	if not 1 <= game_count <= 20:
-		return JsonResponse({'error': 'game_count must be an integer between 1 and 20'}, status=400)
+		return JsonResponse({'error': 'game_count must be an integer between 1 and 50'}, status=400)
+	if not 1 <= game_count <= 50:
+		return JsonResponse({'error': 'game_count must be an integer between 1 and 50'}, status=400)
 
 	try:
 		result = generate_games_from_excel_file(uploaded_file, game_count=game_count)
