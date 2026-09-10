@@ -506,7 +506,7 @@ class ConfirmAiGameViewTests(AuthenticatedViewTestCase):
 
     def test_rejects_too_many_games(self):
         response = self.post_payload(
-            {'games': [{'numbers': list(range(1, 16))}] * 21}
+            {'games': [{'numbers': list(range(1, 16))}] * 51}
         )
 
         self.assertEqual(response.status_code, 400)

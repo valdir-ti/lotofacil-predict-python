@@ -11,10 +11,10 @@ class ExcelUploadForm(forms.Form):
         label='Quantidade de jogos',
         required=False,
         min_value=1,
-        max_value=20,
+        max_value=50,
         initial=3,
-        widget=forms.NumberInput(attrs={'min': 1, 'max': 20, 'step': 1}),
-        help_text='Escolha entre 1 e 20 jogos. Padrão: 3.',
+        widget=forms.NumberInput(attrs={'min': 1, 'max': 50, 'step': 1}),
+        help_text='Escolha entre 1 e 50 jogos. Padrão: 3.',
     )
 
     def clean_game_count(self):
